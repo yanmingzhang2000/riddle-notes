@@ -1,0 +1,67 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build extension
+        run: npm run build
+      
+      - name: Run tests
+        run: npm run test
+        continue-on-error: true
+      
+      - name: Create ZIP package
+        run: |
+          cd dist
+          zip -r ../sidecar-extension.zip .
+          cd ..
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: sidecar-extension.zip
+          body: |
+            # Sidecar Extension
+            
+            ## 安装方法
+            
+            1. 下载 `sidecar-extension.zip`
+            2. 解压到任意目录
+            3. 打开 Chrome 浏览器，访问 `chrome://extensions/`
+            4. 开启右上角的"开发者模式"
+            5. 点击"加载已解压的扩展程序"
+            6. 选择解压后的文件夹
+            
+            ## 功能
+            
+            - ✅ ChatGPT、Claude、Gemini、WorkBuddy 支持
+            - ✅ 一键收藏 Prompt
+            - ✅ 本地管理和版本控制
+            - ✅ 搜索和筛选
+            - ✅ 导入导出
+            
+            详细说明请查看 [README.md](https://github.com/yanmingzhang2000/sidecar#readme)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
