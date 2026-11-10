@@ -1,0 +1,18 @@
+node_modules
+dist
+dist-ssr
+*.local
+.env
+.env.*
+!.env.example
+
+# Local visual review artifacts
+*-desktop*.png
+*-mobile*.png
+browser-audit.json
+build-output.txt
+chrome-dom.html
+chrome-stderr.log
+capture-current.ps1
+verify-current.ps1
+build.cmd
