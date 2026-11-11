@@ -25,7 +25,7 @@
   transition: transform 650ms cubic-bezier(0.2, 0.75, 0.25, 1);
 }
 
-.source-map-layer svg {
+.source-map-layer > svg {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1159,26 +1159,24 @@
 }
 
 .platform-mark svg {
+  display: block;
   width: 20px;
   height: 20px;
   overflow: visible;
 }
 
 .platform-mark--chatgpt svg path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  fill: currentColor;
+  stroke: none;
 }
 
 .source-landmark .platform-mark--gemini {
-  color: var(--paper);
-  background: var(--map-blue);
+  border: 1px solid rgba(70, 58, 47, 0.12);
+  background: #f8f4eb;
 }
 
 .platform-mark--gemini svg path {
-  fill: currentColor;
+  fill: url(#gemini-mark);
 }
 
 .source-landmark .platform-mark--workbuddy {
@@ -1186,12 +1184,12 @@
   background: var(--sage);
 }
 
-.platform-mark--workbuddy svg path {
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+.platform-mark--workbuddy b {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 750;
+  line-height: 1;
+  letter-spacing: -0.08em;
 }
 
 .source-landmark .source-landmark__copy {
