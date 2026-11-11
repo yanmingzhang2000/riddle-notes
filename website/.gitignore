@@ -16,3 +16,4 @@ chrome-stderr.log
 capture-current.ps1
 verify-current.ps1
 build.cmd
+*-tablet*.png

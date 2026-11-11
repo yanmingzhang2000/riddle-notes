@@ -1,3 +1,5 @@
+import Flow from './Flow'
+
 const features = [
   {
     number: '01',
@@ -7,7 +9,7 @@ const features = [
   {
     number: '02',
     title: '整理',
-    description: '用文件夹、标签和搜索，找到已经保存的内容。'
+    description: '使用文件夹、标签和搜索，找到已经保存的内容。'
   },
   {
     number: '03',
@@ -18,15 +20,15 @@ const features = [
 
 export default function Features() {
   return (
-    <section id="product" className="feature-section section">
+    <section id="notebook" className="feature-section section">
       <div className="container">
-        <div className="section-heading">
-          <p className="eyebrow">功能</p>
-          <h2>收藏过的 Prompt，之后还能找到。</h2>
-          <p>当前版本提供收藏、整理和版本记录。</p>
+        <div className="section-heading" data-reveal>
+          <p className="eyebrow">THE NOTEBOOK</p>
+          <h2>收藏、整理、继续使用。</h2>
+          <p>Riddle Notes 目前只做三件事。</p>
         </div>
 
-        <div className="feature-list">
+        <div className="feature-list" data-reveal>
           {features.map((feature) => (
             <article className="feature-item" key={feature.number}>
               <span className="feature-item__number">{feature.number}</span>
@@ -35,6 +37,8 @@ export default function Features() {
             </article>
           ))}
         </div>
+
+        <Flow />
       </div>
     </section>
   )

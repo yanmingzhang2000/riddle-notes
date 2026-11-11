@@ -1,7 +1,7 @@
 {
-  "name": "sidecar-website",
+  "name": "riddle-notes-website",
   "version": "1.0.0",
-  "description": "Sidecar Product Landing Page",
+  "description": "Riddle Notes product landing page",
   "type": "module",
   "scripts": {
     "dev": "vite",

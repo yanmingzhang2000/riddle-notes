@@ -2,9 +2,10 @@
   "version": "0.1.0",
   "releaseDate": "2026-11-09",
   "releaseNotes": [
-    "支持 ChatGPT Web 对话收藏",
-    "支持文件夹、标签和搜索",
-    "支持版本记录和 JSON 导出"
+    "ChatGPT Web 对话收藏",
+    "文件夹、标签和搜索",
+    "Prompt 版本记录",
+    "JSON 数据导出"
   ],
   "repositoryUrl": "https://github.com/yanmingzhang2000/sidecar",
   "sourceDownloadUrl": "https://github.com/yanmingzhang2000/sidecar/archive/refs/heads/main.zip",

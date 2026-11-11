@@ -11,9 +11,9 @@ export default function Footer({ version }: FooterProps) {
   return (
     <footer className="site-footer">
       <div className="container site-footer__inner">
-        <div>
-          <strong>Sidecar</strong>
-          <p>你的 AI Prompt 收藏夹。</p>
+        <div className="footer-brand">
+          <strong>Riddle Notes</strong>
+          <p>Your private collection of useful prompts.</p>
         </div>
         <nav className="site-footer__links" aria-label="页脚导航">
           <a href={version.repositoryUrl} target="_blank" rel="noreferrer">GitHub</a>
@@ -22,7 +22,7 @@ export default function Footer({ version }: FooterProps) {
           <a href={version.issuesUrl} target="_blank" rel="noreferrer">Issues</a>
         </nav>
       </div>
-      <div className="container site-footer__bottom">© 2026 Sidecar</div>
+      <div className="container site-footer__bottom">© 2026 Riddle Notes</div>
     </footer>
   )
 }

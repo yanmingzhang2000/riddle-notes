@@ -1,53 +1,26 @@
-# Sidecar Website
+# Riddle Notes Website
 
-这是 Sidecar 产品落地页，一个 Local-first Prompt Workspace。
+Riddle Notes 的产品落地页。Riddle Notes 是一个面向 ChatGPT Web 的本地 Prompt 收藏工具。
 
 ## 开发
 
-```bash
-cd website
+```powershell
 npm install
 npm run dev
 ```
 
 ## 构建
 
-```bash
+```powershell
 npm run build
 ```
 
-## 部署到 GitHub Pages
+生产资源输出到 `dist/`。Vite 的公开路径配置为 `/sidecar/`，用于 GitHub Pages 项目站点。
 
-### 方法 1: 自动部署（推荐）
+## 版本和链接
 
-项目根目录已配置 GitHub Actions，push 到 main 分支会自动部署。
+版本号、源码下载、安装说明、更新记录和 Issues 链接统一维护在 `version.json`。
 
-### 方法 2: 手动部署
+## 视觉方向
 
-1. 构建项目:
-   ```bash
-   npm run build
-   ```
-
-2. 将 `dist` 目录内容推送到 `gh-pages` 分支
-
-3. 在 GitHub 仓库设置中启用 GitHub Pages，选择 `gh-pages` 分支
-
-## 技术栈
-
-- React 18
-- TypeScript
-- Vite
-- CSS Variables
-- Canvas API (背景动画)
-
-## 风格
-
-- Warm Editorial / Paper Premium 风格
-- 浅色米白背景
-- 编辑感排版
-- 高级但不冷漠
-
-## 版本信息
-
-版本信息存储在 `version.json` 文件中，可以根据实际发布情况更新。
+页面使用“Prompt 地图 + 私人笔记页”的编辑式视觉，包含羊皮纸、墨迹、路径、地图节点、页码和注释。所有地图与笔记内容均为产品视觉示意。

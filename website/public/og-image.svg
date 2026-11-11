@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <filter id="grain"><feTurbulence baseFrequency=".7" numOctaves="3"/><feColorMatrix values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 .05 0"/></filter>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%"><feDropShadow dx="0" dy="22" stdDeviation="22" flood-color="#463A2F" flood-opacity=".18"/></filter>
+  </defs>
+  <rect width="1200" height="630" fill="#F4EFE3"/>
+  <rect width="1200" height="630" filter="url(#grain)" opacity=".18"/>
+  <circle cx="975" cy="100" r="240" fill="#899B83" opacity=".09"/>
+  <circle cx="110" cy="580" r="260" fill="#B18A45" opacity=".07"/>
+  <g transform="translate(72 75)">
+    <rect width="52" height="52" rx="14" fill="#24241F"/>
+    <path d="M13 38c5-12 9-16 13-12 4 3 6 0 13-10" fill="none" stroke="#F4EFE3" stroke-width="2.2" stroke-linecap="round"/>
+    <circle cx="13" cy="38" r="3" fill="#B18A45"/><circle cx="39" cy="16" r="3" fill="#F4EFE3"/>
+    <text x="70" y="37" font-family="Georgia,serif" font-size="27" font-weight="700" fill="#24241F">Riddle Notes</text>
+  </g>
+  <text x="72" y="270" font-family="Georgia,serif" font-size="84" letter-spacing="-4" fill="#24241F">Riddle Notes</text>
+  <text x="76" y="322" font-family="Georgia,serif" font-style="italic" font-size="27" fill="#463A2F">Your private collection of useful prompts.</text>
+  <text x="76" y="394" font-family="Arial,sans-serif" font-size="22" fill="#776B60">在 ChatGPT 回复旁点击星标，把值得再次使用的 Prompt 保存下来。</text>
+  <text x="76" y="514" font-family="monospace" font-size="14" letter-spacing="2" fill="#8A5B4B">PROMPT NOTES · CHATGPT WEB</text>
+  <g transform="translate(710 92) rotate(-2 200 200)" filter="url(#shadow)">
+    <path d="M0 15 402 0l18 408-405 18Z" fill="#E8E0D1" stroke="#8B7D6A" stroke-opacity=".35"/>
+    <path d="M45 304C112 146 184 85 255 114s94 99 148 128" fill="none" stroke="#463A2F" stroke-width="2" stroke-dasharray="8 8"/>
+    <path d="M-5 108c107-69 203-44 278 15s102 38 153-15" fill="none" stroke="#8799A0" stroke-opacity=".35"/>
+    <circle cx="49" cy="300" r="8" fill="#8799A0" stroke="#F4EFE3" stroke-width="4"/>
+    <circle cx="178" cy="121" r="8" fill="#899B83" stroke="#F4EFE3" stroke-width="4"/>
+    <circle cx="306" cy="168" r="8" fill="#B18A45" stroke="#F4EFE3" stroke-width="4"/>
+  </g>
+  <g transform="translate(884 178) rotate(3 130 170)" filter="url(#shadow)">
+    <rect width="252" height="340" fill="#FBF8F0" stroke="#8B7D6A" stroke-opacity=".35"/>
+    <line x1="27" y1="0" x2="27" y2="340" stroke="#8A5B4B" stroke-opacity=".28"/>
+    <text x="45" y="48" font-family="monospace" font-size="11" letter-spacing="2" fill="#8A5B4B">SAVED PROMPT</text>
+    <text x="45" y="96" font-family="Georgia,serif" font-size="25" fill="#24241F">产品需求方案 Review</text>
+    <text x="45" y="135" font-family="Arial,sans-serif" font-size="13" fill="#776B60">来源 · ChatGPT Web</text>
+    <line x1="45" y1="165" x2="105" y2="165" stroke="#B18A45"/>
+    <text x="45" y="213" font-family="Arial,sans-serif" font-size="15" fill="#463A2F">工作   检查清单</text>
+    <text x="45" y="311" font-family="monospace" font-size="10" fill="#776B60">RIDDLE NOTES</text>
+    <text x="220" y="311" font-family="monospace" font-size="10" fill="#B18A45">14</text>
+  </g>
+</svg>
