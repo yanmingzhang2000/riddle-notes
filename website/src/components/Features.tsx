@@ -1,5 +1,3 @@
-import Flow from './Flow'
-
 const features = [
   {
     number: '01',
@@ -37,8 +35,6 @@ export default function Features() {
             </article>
           ))}
         </div>
-
-        <Flow />
       </div>
     </section>
   )

@@ -12,12 +12,17 @@ export default function Hero({ version }: HeroProps) {
   const moveArtifact = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (window.matchMedia('(prefers-reduced-motion: reduce), (pointer: coarse)').matches) return
     const bounds = event.currentTarget.getBoundingClientRect()
-    const x = ((event.clientX - bounds.left) / bounds.width - 0.5) * 12
-    const y = ((event.clientY - bounds.top) / bounds.height - 0.5) * 10
+    const pointerX = event.clientX - bounds.left
+    const pointerY = event.clientY - bounds.top
+    const x = (pointerX / bounds.width - 0.5) * 12
+    const y = (pointerY / bounds.height - 0.5) * 10
     event.currentTarget.style.setProperty('--map-x', `${x}px`)
     event.currentTarget.style.setProperty('--map-y', `${y}px`)
     event.currentTarget.style.setProperty('--note-x', `${x * -0.5}px`)
     event.currentTarget.style.setProperty('--note-y', `${y * -0.5}px`)
+    event.currentTarget.style.setProperty('--spot-x', `${pointerX}px`)
+    event.currentTarget.style.setProperty('--spot-y', `${pointerY}px`)
+    event.currentTarget.style.setProperty('--spot-opacity', '1')
   }
 
   const resetArtifact = (event: ReactPointerEvent<HTMLDivElement>) => {
@@ -25,6 +30,7 @@ export default function Hero({ version }: HeroProps) {
     event.currentTarget.style.setProperty('--map-y', '0px')
     event.currentTarget.style.setProperty('--note-x', '0px')
     event.currentTarget.style.setProperty('--note-y', '0px')
+    event.currentTarget.style.setProperty('--spot-opacity', '0')
   }
 
   return (
@@ -32,10 +38,17 @@ export default function Hero({ version }: HeroProps) {
       <div className="hero__wash" aria-hidden="true" />
       <div className="container hero__layout">
         <div className="hero__copy">
-          <p className="eyebrow">PROMPT NOTES · CHATGPT WEB</p>
-          <h1>Riddle Notes</h1>
+          <p className="eyebrow">RIDDLE NOTES · CHATGPT WEB</p>
+          <p className="hero__brand-name">Riddle Notes</p>
+          <h1>
+            <span>你的 AI Prompt</span>
+            <span>收藏夹</span>
+          </h1>
           <p className="hero__subtitle">Your private collection of useful prompts.</p>
-          <p className="hero__lead">在 ChatGPT 回复旁点击星标，把值得再次使用的 Prompt 保存下来。</p>
+          <p className="hero__lead">
+            在 ChatGPT 回复旁点击星标，<br />
+            把 Prompt 和回复保存下来，以后可以再找、再用。
+          </p>
           <div className="hero__actions">
             <a className="button button--ink" href={version.sourceDownloadUrl}>
               <ArrowDownToLine size={16} aria-hidden="true" />
@@ -46,7 +59,7 @@ export default function Hero({ version }: HeroProps) {
               查看安装步骤
             </a>
           </div>
-          <p className="hero__meta">支持 ChatGPT Web · 本地存储 · 开发版</p>
+          <p className="hero__meta">开发版 · 支持 ChatGPT Web · 需要手动安装</p>
         </div>
 
         <div
@@ -61,6 +74,15 @@ export default function Hero({ version }: HeroProps) {
               <path className="source-map-contour source-map-contour--sage" d="M10 417c101-80 196-61 279-2s154 44 226-18 145-70 231-29" />
               <path className="source-map-contour" d="M130-20c17 80 73 122 135 149s96 85 94 157 55 132 148 183" />
             </svg>
+            <div className="map-awakened" aria-hidden="true">
+              <svg viewBox="0 0 720 500">
+                <path d="M72 388c84-67 156-63 225-16s134 44 205 5" />
+                <path d="M402 69c-33 62-37 111-8 156" />
+              </svg>
+              <span className="map-whisper map-whisper--writing">写作</span>
+              <span className="map-whisper map-whisper--code">代码</span>
+              <span className="map-whisper map-whisper--archive">私人索引 · 014</span>
+            </div>
             <div className="source-landmark source-landmark--chatgpt">
               <span className="platform-mark platform-mark--chatgpt">
                 <svg viewBox="1.68 1.75 16.65 16.5" aria-hidden="true">
@@ -115,12 +137,17 @@ export default function Hero({ version }: HeroProps) {
           </div>
 
           <svg className="capture-route" viewBox="0 0 720 500" aria-hidden="true">
-            <path className="capture-route__under" d="M354 333C413 359 451 341 493 299s60-69 93-77" />
-            <path className="capture-route__line" pathLength="1" d="M354 333C413 359 451 341 493 299s60-69 93-77" />
+            <path className="capture-route__under" d="M120 305C185 325 255 392 338 410C405 424 466 340 520 250" />
+            <path className="capture-route__line" pathLength="1" d="M120 305C185 325 255 392 338 410C405 424 466 340 520 250" />
             <circle className="capture-route__traveler" r="5">
-              <animateMotion dur="1.6s" repeatCount="1" begin="2.7s" fill="freeze" path="M354 333C413 359 451 341 493 299s60-69 93-77" />
+              <animateMotion dur="1.6s" repeatCount="1" begin="2.7s" fill="freeze" path="M120 305C185 325 255 392 338 410C405 424 466 340 520 250" />
             </circle>
           </svg>
+
+          <div className="capture-node" aria-hidden="true">
+            <i>✦</i>
+            <span><strong>产品评审</strong><small>新收藏</small></span>
+          </div>
 
           <article className="story-notebook">
             <div className="story-notebook__cover" aria-hidden="true" />
