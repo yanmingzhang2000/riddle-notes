@@ -7,9 +7,9 @@
     "Prompt 版本记录",
     "JSON 数据导出"
   ],
-  "repositoryUrl": "https://github.com/yanmingzhang2000/sidecar",
-  "sourceDownloadUrl": "https://github.com/yanmingzhang2000/sidecar/archive/refs/heads/main.zip",
-  "installationGuide": "https://github.com/yanmingzhang2000/sidecar/blob/main/INSTALLATION.md",
-  "changelogUrl": "https://github.com/yanmingzhang2000/sidecar/commits/main/",
-  "issuesUrl": "https://github.com/yanmingzhang2000/sidecar/issues"
+  "repositoryUrl": "https://github.com/yanmingzhang2000/riddle-notes",
+  "sourceDownloadUrl": "https://github.com/yanmingzhang2000/riddle-notes/archive/refs/heads/main.zip",
+  "installationGuide": "https://github.com/yanmingzhang2000/riddle-notes/blob/main/INSTALLATION.md",
+  "changelogUrl": "https://github.com/yanmingzhang2000/riddle-notes/commits/main/",
+  "issuesUrl": "https://github.com/yanmingzhang2000/riddle-notes/issues"
 }

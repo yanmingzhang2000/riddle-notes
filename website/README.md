@@ -15,7 +15,7 @@ npm run dev
 npm run build
 ```
 
-生产资源输出到 `dist/`。Vite 的公开路径配置为 `/sidecar/`，用于 GitHub Pages 项目站点。
+生产资源输出到 `dist/`。Vite 的公开路径配置为 `/riddle-notes/`，用于 GitHub Pages 项目站点。
 
 ## 版本和链接
 
