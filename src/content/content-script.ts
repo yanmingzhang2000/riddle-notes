@@ -2,6 +2,7 @@ import { chatGPTAdapter } from './adapters/chatgpt';
 import { claudeAdapter } from './adapters/claude';
 import { geminiAdapter } from './adapters/gemini';
 import { workBuddyAdapter } from './adapters/workbuddy';
+import { deepseekAdapter } from './adapters/deepseek';
 import { PlatformAdapter } from '@shared/types';
 import { STAR_BUTTON_STYLE, TOAST_STYLE } from '@shared/constants';
 import { PLATFORM_NAMES } from './selectors';
@@ -12,6 +13,7 @@ const adapters: PlatformAdapter[] = [
   claudeAdapter,
   geminiAdapter,
   workBuddyAdapter,
+  deepseekAdapter,
 ];
 
 // 当前激活的适配器
@@ -79,16 +81,26 @@ async function handleStarClick(event: Event) {
   try {
     // 查找对应的 AI 回复
     let assistantMessage: Element | null = null;
-    let current = button.parentElement;
     
-    // 向上查找 AI 回复消息
+    // 方法1：从按钮元素向上查找包含的助手消息
+    let current = button.parentElement;
+    const assistantMessages = currentAdapter.findAssistantMessages();
+    
     while (current && !assistantMessage) {
-      if (current.hasAttribute('data-testid') && 
-          current.getAttribute('data-testid') === 'assistant-message') {
-        assistantMessage = current;
-        break;
+      // 检查当前元素是否是助手消息之一
+      for (const msg of assistantMessages) {
+        if (msg.contains(current)) {
+          assistantMessage = msg;
+          break;
+        }
       }
+      if (assistantMessage) break;
       current = current.parentElement;
+    }
+
+    // 方法2：如果向上查找失败，尝试找到最近的助手消息
+    if (!assistantMessage && assistantMessages.length > 0) {
+      assistantMessage = findNearestAssistantMessage(button, assistantMessages);
     }
 
     if (!assistantMessage) {
@@ -136,6 +148,31 @@ async function handleStarClick(event: Event) {
     console.error('[Sidecar] Save failed:', error);
     showToast('保存失败，请重试', 'error');
   }
+}
+
+/**
+ * 查找最近的助手消息
+ */
+function findNearestAssistantMessage(button: Element, assistantMessages: Element[]): Element | null {
+  if (assistantMessages.length === 0) return null;
+  
+  const buttonRect = button.getBoundingClientRect();
+  let nearestMessage = assistantMessages[0];
+  let minDistance = Infinity;
+  
+  for (const message of assistantMessages) {
+    const messageRect = message.getBoundingClientRect();
+    
+    // 计算垂直距离（只关心垂直方向）
+    const distance = Math.abs(messageRect.top - buttonRect.top);
+    
+    if (distance < minDistance) {
+      minDistance = distance;
+      nearestMessage = message;
+    }
+  }
+  
+  return nearestMessage;
 }
 
 /**
@@ -212,21 +249,92 @@ function injectStarButtons() {
       return;
     }
 
-    // 查找复制按钮容器
-    // ChatGPT 通常在消息底部有操作按钮区域
-    let buttonContainer = message.querySelector('[class*="actions"]');
+    // 策略1：查找现有的按钮区域（如复制按钮附近）
+    let buttonContainer = findExistingButtonContainer(message);
     
     if (!buttonContainer) {
-      // 如果找不到，创建一个容器
-      buttonContainer = document.createElement('div');
-      buttonContainer.style.cssText = 'display: flex; gap: 4px; margin-top: 8px;';
-      message.appendChild(buttonContainer);
+      // 策略2：查找合适的父容器来添加按钮
+      buttonContainer = findOrCreateButtonContainer(message);
     }
 
-    // 创建并插入星标按钮
-    const starButton = createStarButton();
-    buttonContainer.appendChild(starButton);
+    if (buttonContainer) {
+      // 创建并插入星标按钮
+      const starButton = createStarButton();
+      buttonContainer.appendChild(starButton);
+    }
   });
+}
+
+/**
+ * 查找现有的按钮容器
+ */
+function findExistingButtonContainer(message: Element): Element | null {
+  // 首先查找复制按钮所在的容器
+  const copyButtons = currentAdapter!.findCopyButtons();
+  
+  for (const copyButton of copyButtons) {
+    if (message.contains(copyButton)) {
+      // 找到复制按钮的父容器
+      const container = copyButton.parentElement;
+      if (container && container.tagName !== 'BODY') {
+        return container;
+      }
+    }
+  }
+
+  // 查找常见的按钮容器类名
+  const commonContainers = [
+    '[class*="action"]',
+    '[class*="button"]', 
+    '[class*="toolbar"]',
+    '[class*="menu"]',
+    '[class*="control"]',
+  ];
+
+  for (const selector of commonContainers) {
+    try {
+      const containers = message.querySelectorAll(selector);
+      for (const container of containers) {
+        if (container.childElementCount > 0 && 
+            !container.querySelector('.sidecar-star-btn')) {
+          return container;
+        }
+      }
+    } catch (error) {
+      // 忽略无效的选择器
+    }
+  }
+
+  return null;
+}
+
+/**
+ * 查找或创建按钮容器
+ */
+function findOrCreateButtonContainer(message: Element): Element | null {
+  // 策略1：查找消息的最后子元素
+  let lastChild = message.lastElementChild;
+  if (lastChild && lastChild.tagName !== 'svg' && lastChild.tagName !== 'style') {
+    // 检查最后一个子元素是否适合添加按钮
+    if (lastChild.tagName === 'DIV' || lastChild.tagName === 'SPAN') {
+      return lastChild;
+    }
+  }
+
+  // 策略2：创建新的按钮容器
+  const container = document.createElement('div');
+  container.className = 'sidecar-button-container';
+  container.style.cssText = `
+    display: flex;
+    gap: 4px;
+    margin-top: 8px;
+    align-items: center;
+    justify-content: flex-start;
+  `;
+  
+  // 将容器添加到消息末尾
+  message.appendChild(container);
+  return container;
 }
 
 /**
