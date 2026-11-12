@@ -38,16 +38,16 @@ export default function Hero({ version }: HeroProps) {
       <div className="hero__wash" aria-hidden="true" />
       <div className="container hero__layout">
         <div className="hero__copy">
-          <p className="eyebrow">RIDDLE NOTES · CHATGPT WEB</p>
+          <p className="eyebrow">RIDDLE NOTES · MULTI-PLATFORM AI</p>
           <p className="hero__brand-name">Riddle Notes</p>
           <h1>
-            <span>你的 AI Prompt</span>
+            <span>跨平台 AI Prompt</span>
             <span>收藏夹</span>
           </h1>
           <p className="hero__subtitle">Your private collection of useful prompts.</p>
           <p className="hero__lead">
-            在 ChatGPT 回复旁点击星标，<br />
-            把 Prompt 和回复保存下来，以后可以再找、再用。
+            在 ChatGPT、Claude、Gemini、WorkBuddy、DeepSeek<br />
+            等 AI 助手回复旁点击星标，把 Prompt 和回复收藏起来。
           </p>
           <div className="hero__actions">
             <a className="button button--ink" href={version.sourceDownloadUrl}>
@@ -59,7 +59,7 @@ export default function Hero({ version }: HeroProps) {
               查看安装步骤
             </a>
           </div>
-          <p className="hero__meta">开发版 · 支持 ChatGPT Web · 需要手动安装</p>
+          <p className="hero__meta">开发版 · 支持 ChatGPT, Claude, Gemini, WorkBuddy, DeepSeek · 需要手动安装</p>
         </div>
 
         <div
@@ -91,6 +91,16 @@ export default function Hero({ version }: HeroProps) {
               </span>
               <span className="source-landmark__copy"><strong>ChatGPT</strong><small>当前支持</small></span>
             </div>
+            <div className="source-landmark source-landmark--claude">
+              <span className="platform-mark platform-mark--claude">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#DDBE97" d="M4.75 12c0-4 3.25-7.25 7.25-7.25s7.25 3.25 7.25 7.25-3.25 7.25-7.25 7.25S4.75 16 4.75 12z" />
+                  <path fill="#5F443D" d="M12 8.25c-.75 0-1.5.25-2 .75-.5.5-.75 1.25-.75 2s.25 1.5.75 2c.5.5 1.25.75 2 .75s1.5-.25 2-.75c.5-.5.75-1.25.75-2s-.25-1.5-.75-2c-.5-.5-1.25-.75-2-.75zm-1 2c0-.25.25-.5.5-.5s.5.25.5.5-.25.5-.5.5-.5-.25-.5-.5z" />
+                  <path fill="#5F443D" d="M8.25 12c0-1.75.75-3.25 2-4.25-1.25-1-3-1.5-4.75-1.25C3.75 8 3.25 10 3.75 12s1.5 3.75 3.25 4.5c1.75.75 3.75.25 5-1-.75-1.25-1.25-3-1.25-4.5zM15.75 12c0 1.75-.75 3.25-2 4.25 1.25 1 3 1.5 4.75 1.25 1.75-.25 3.25-2.25 2.75-4.25s-1.5-3.75-3.25-4.5c-1.75-.75-3.75-.25-5 1 .75 1.25 1.25 3 1.25 4.5z" />
+                </svg>
+              </span>
+              <span className="source-landmark__copy"><strong>Claude</strong><small>当前支持</small></span>
+            </div>
             <div className="source-landmark source-landmark--gemini">
               <span className="platform-mark platform-mark--gemini">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -98,22 +108,32 @@ export default function Hero({ version }: HeroProps) {
                   <path fill="url(#gemini-mark)" d="M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81" />
                 </svg>
               </span>
-              <span className="source-landmark__copy"><strong>Gemini</strong><small>计划接入</small></span>
+              <span className="source-landmark__copy"><strong>Gemini</strong><small>当前支持</small></span>
             </div>
             <div className="source-landmark source-landmark--workbuddy">
               <span className="platform-mark platform-mark--workbuddy"><b>W</b></span>
-              <span className="source-landmark__copy"><strong>WorkBuddy</strong><small>计划接入</small></span>
+              <span className="source-landmark__copy"><strong>WorkBuddy</strong><small>当前支持</small></span>
+            </div>
+            <div className="source-landmark source-landmark--deepseek">
+              <span className="platform-mark platform-mark--deepseek">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path fill="#F5F5F5" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z" />
+                  <path fill="#3B82F6" d="M12 7l2 4 4 2-4 2-2 4-2-4-4-2 4-2 2-4z" />
+                  <path fill="#60A5FA" d="M12 10.5l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z" />
+                </svg>
+              </span>
+              <span className="source-landmark__copy"><strong>DeepSeek</strong><small>当前支持</small></span>
             </div>
           </div>
 
           <div className="source-browser">
             <div className="source-browser__bar">
               <span className="window-dots"><i /><i /><i /></span>
-              <span className="source-browser__address">chatgpt.com</span>
-              <span className="source-browser__state">当前支持</span>
+              <span className="source-browser__address">chatgpt.com/claude.ai/gemini.google.com</span>
+              <span className="source-browser__state">5平台支持</span>
             </div>
             <div className="source-browser__body">
-              <div className="source-browser__site"><span>ChatGPT</span><i>WEB</i></div>
+              <div className="source-browser__site"><span>ChatGPT / Claude / Gemini</span><i>多平台支持</i></div>
               <div className="source-message source-message--user">
                 <span className="source-avatar">Y</span>
                 <p>请 Review 这份产品需求方案，指出关键缺口。</p>

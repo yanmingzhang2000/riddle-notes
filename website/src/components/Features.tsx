@@ -2,7 +2,7 @@ const features = [
   {
     number: '01',
     title: '收藏',
-    description: '在 ChatGPT 回复旁点击星标，保存当前 Prompt、回复和来源。'
+    description: '在 ChatGPT、Claude、Gemini、WorkBuddy、DeepSeek 等 AI 助手回复旁点击星标，保存 Prompt、回复和来源。'
   },
   {
     number: '02',

@@ -1554,3 +1554,35 @@
     display: none;
   }
 }
+
+/* Claude platform icon styles */
+.source-landmark .platform-mark--claude {
+  border: 1px solid rgba(221, 190, 151, 0.3);
+  background: rgba(95, 68, 61, 0.08);
+}
+
+.platform-mark--claude svg {
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.1));
+}
+
+.source-landmark .platform-mark--deepseek {
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.platform-mark--deepseek svg {
+  filter: drop-shadow(0 1px 1px rgba(59, 130, 246, 0.2));
+}
+
+/* Position the new platform landmarks */
+.source-landmark--claude {
+  top: 20%;
+  left: 15%;
+  animation: landmark-pulse 4.2s ease-in-out infinite 0.5s;
+}
+
+.source-landmark--deepseek {
+  bottom: 15%;
+  right: 15%;
+  animation: landmark-pulse 3.6s ease-in-out infinite 0.8s;
+}
