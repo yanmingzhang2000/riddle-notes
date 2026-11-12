@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Sidecar",
-  "version": "0.1.0",
-  "description": "一键收藏 Prompt 及 AI 输出，本地管理与迭代优化",
+  "name": "Riddle Notes",
+  "version": "1.0.0",
+  "description": "跨平台 AI Prompt 收藏与管理工具",
   "permissions": [
     "storage",
     "activeTab",

@@ -1,0 +1,8 @@
+{
+  "latestVersion": "1.1.0",
+  "publishedAt": "2026-11-12T10:00:00+08:00",
+  "releaseNotes": "RiddleNote v1.1.0 现已发布！\n\n主要更新：\n- ✅ 新增多平台支持：Claude、Gemini、WorkBuddy、DeepSeek\n- ✅ 修复 ChatGPT Web 收藏失败问题\n- ✅ 增加数据导出功能（JSON、Markdown）\- ✅ 优化侧边栏界面和搜索体验\n- ✅ 添加更新管理功能\n- ✅ 改进附件处理和代码块识别\n\n下载新版后，您将获得完整的跨平台 AI Prompt 收藏体验！",
+  "downloadUrl": "https://github.com/yanmingzhang2000/sidecar/releases/tag/v1.1.0",
+  "minSupportedVersion": "1.0.0",
+  "isMandatory": false
+}

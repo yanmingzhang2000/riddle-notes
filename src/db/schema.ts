@@ -74,6 +74,17 @@ export interface ImprovementRequest {
   createdAt: Date;
 }
 
+export interface AppSettings {
+  id?: number;
+  updateCheckEnabled: boolean;
+  lastUpdateCheckAt?: Date;
+  lastNotifiedVersion?: string;
+  lastDismissedVersion?: string;
+  updateManifestUrl: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // Dexie 数据库类
 export class SidecarDB extends Dexie {
   folders!: Table<Folder, number>;
@@ -83,6 +94,7 @@ export class SidecarDB extends Dexie {
   runs!: Table<Run, number>;
   attachments!: Table<Attachment, number>;
   improvementRequests!: Table<ImprovementRequest, number>;
+  appSettings!: Table<AppSettings, number>;
 
   constructor() {
     super('SidecarDB');
@@ -95,6 +107,18 @@ export class SidecarDB extends Dexie {
       runs: '++id, promptId, promptVersionId, sourcePlatform, rating, createdAt',
       attachments: '++id, runId, createdAt',
       improvementRequests: '++id, promptId, sourceRunId, status, createdAt',
+    });
+    
+    // Version 2: Add appSettings table for update management
+    this.version(2).stores({
+      folders: '++id, name, sortOrder, createdAt, updatedAt',
+      tags: '++id, name, createdAt',
+      prompts: '++id, title, folderId, sourcePlatform, isFavorite, createdAt, updatedAt, *tags',
+      promptVersions: '++id, promptId, versionNumber, createdAt',
+      runs: '++id, promptId, promptVersionId, sourcePlatform, rating, createdAt',
+      attachments: '++id, runId, createdAt',
+      improvementRequests: '++id, promptId, sourceRunId, status, createdAt',
+      appSettings: '++id, updateCheckEnabled, lastUpdateCheckAt, lastNotifiedVersion, lastDismissedVersion, updateManifestUrl',
     });
   }
 }
@@ -122,5 +146,17 @@ export async function initializeDefaultData() {
       { name: '待改进', createdAt: new Date() },
       { name: '效果很好', createdAt: new Date() },
     ]);
+  }
+
+  // 初始化应用设置
+  const settingsCount = await db.appSettings.count();
+  
+  if (settingsCount === 0) {
+    await db.appSettings.add({
+      updateCheckEnabled: true,
+      updateManifestUrl: 'https://raw.githubusercontent.com/yanmingzhang2000/sidecar/main/update-manifest.json',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
   }
 }
