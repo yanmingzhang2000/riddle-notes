@@ -27,6 +27,7 @@ export interface UpdateCheckResult {
   releaseNotes: string;
   downloadUrl: string;
   publishedAt: string;
+  minSupportedVersion: string;
   lastCheckAt: Date;
 }
 

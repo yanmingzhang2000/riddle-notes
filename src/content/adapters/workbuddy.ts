@@ -1,4 +1,5 @@
 import { BaseAdapter } from './base-adapter';
+import { AttachmentDraft } from '@shared/types';
 import { WORKBUDDY_SELECTORS, PLATFORM_DOMAINS } from '../selectors';
 
 /**

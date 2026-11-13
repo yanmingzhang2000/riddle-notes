@@ -207,7 +207,7 @@ async function searchPrompts(data: { query: string }) {
   const prompts = await db.prompts
     .filter(prompt => 
       prompt.title.toLowerCase().includes(data.query.toLowerCase()) ||
-      prompt.description?.toLowerCase().includes(data.query.toLowerCase())
+      (prompt.description?.toLowerCase().includes(data.query.toLowerCase()) ?? false)
     )
     .toArray();
 

@@ -211,6 +211,7 @@ export class UpdateService {
             releaseNotes: '',
             downloadUrl: '',
             publishedAt: '',
+            minSupportedVersion: '',
             lastCheckAt: settings.lastUpdateCheckAt,
           };
         }
@@ -236,6 +237,7 @@ export class UpdateService {
         releaseNotes: manifest.releaseNotes,
         downloadUrl: manifest.downloadUrl,
         publishedAt: manifest.publishedAt,
+        minSupportedVersion: manifest.minSupportedVersion,
         lastCheckAt: now,
       };
 

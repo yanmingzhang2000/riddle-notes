@@ -63,6 +63,7 @@ const Settings: React.FC = () => {
             releaseNotes: '',
             downloadUrl: '',
             publishedAt: '',
+            minSupportedVersion: '',
             lastCheckAt: existingSettings.lastUpdateCheckAt,
           });
         }
