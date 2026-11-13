@@ -8,6 +8,7 @@
     "JSON 数据导出"
   ],
   "repositoryUrl": "https://github.com/yanmingzhang2000/riddle-notes",
+  "extensionDownloadPath": "./downloads/riddle-notes-extension.zip",
   "sourceDownloadUrl": "https://github.com/yanmingzhang2000/riddle-notes/archive/refs/heads/main.zip",
   "installationGuide": "https://github.com/yanmingzhang2000/riddle-notes/blob/main/INSTALLATION.md",
   "changelogUrl": "https://github.com/yanmingzhang2000/riddle-notes/commits/main/",

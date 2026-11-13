@@ -3,7 +3,7 @@ import { ArrowDownToLine, BookOpen, MousePointer2, Star } from 'lucide-react'
 
 interface HeroProps {
   version: {
-    sourceDownloadUrl: string
+    extensionDownloadPath: string
     installationGuide: string
   }
 }
@@ -50,9 +50,9 @@ export default function Hero({ version }: HeroProps) {
             等 AI 助手回复旁点击星标，把 Prompt 和回复收藏起来。
           </p>
           <div className="hero__actions">
-            <a className="button button--ink" href={version.sourceDownloadUrl}>
+            <a className="button button--ink" href={version.extensionDownloadPath} download>
               <ArrowDownToLine size={16} aria-hidden="true" />
-              获取源码
+              下载安装包
             </a>
             <a className="button button--paper" href={version.installationGuide} target="_blank" rel="noreferrer">
               <BookOpen size={16} aria-hidden="true" />
