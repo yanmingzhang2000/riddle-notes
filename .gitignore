@@ -41,6 +41,7 @@ coverage/
 *.crx
 *.pem
 *.zip
+!website/public/downloads/*.zip
 
 # API Keys (security)
 **/api-keys.ts
