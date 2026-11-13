@@ -20,17 +20,20 @@
  */
 
 // 如果已安装 Node.js 和 sharp，可以使用以下代码
-const sharp = require('sharp');
-const path = require('path');
-const fs = require('fs');
+import sharp from 'sharp';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function generateIcons() {
-  const svgPath = path.join(__dirname, '../public/icons/icon.svg');
+  const iconsDir = path.join(__dirname, '../public/icons');
   const sizes = [16, 32, 48, 128];
   
   for (const size of sizes) {
-    const outputPath = path.join(__dirname, `../public/icons/icon-${size}.png`);
-    await sharp(svgPath)
+    const svgPath = path.join(iconsDir, size <= 32 ? 'icon-small.svg' : 'icon.svg');
+    const outputPath = path.join(iconsDir, `icon-${size}.png`);
+    await sharp(svgPath, { density: 384 })
       .resize(size, size)
       .png()
       .toFile(outputPath);

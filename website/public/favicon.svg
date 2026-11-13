@@ -1,6 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="17" fill="#24241F"/>
-  <path d="M16 45c6-15 11-20 16-15 4 4 7 0 16-12" fill="none" stroke="#F4EFE3" stroke-width="3" stroke-linecap="round"/>
-  <circle cx="16" cy="45" r="4" fill="#B18A45"/>
-  <circle cx="48" cy="18" r="4" fill="#F4EFE3"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="28" fill="#24241F"/>
+  <rect x="40" y="22" width="66" height="84" rx="10" fill="#F4EFE3"/>
+  <rect x="26" y="32" width="22" height="10" rx="5" fill="#F4EFE3"/>
+  <rect x="26" y="50" width="22" height="10" rx="5" fill="#F4EFE3"/>
+  <rect x="26" y="68" width="22" height="10" rx="5" fill="#F4EFE3"/>
+  <rect x="26" y="86" width="22" height="10" rx="5" fill="#F4EFE3"/>
+  <circle cx="36" cy="37" r="3" fill="#24241F"/>
+  <circle cx="36" cy="55" r="3" fill="#24241F"/>
+  <circle cx="36" cy="73" r="3" fill="#24241F"/>
+  <circle cx="36" cy="91" r="3" fill="#24241F"/>
+  <path d="M77 43Q82 59 98 64Q82 69 77 85Q72 69 56 64Q72 59 77 43Z" fill="#B18A45"/>
 </svg>
