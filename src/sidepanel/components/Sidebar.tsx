@@ -53,7 +53,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
       <div className="p-4 border-b border-gray-200">
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <Star className="w-6 h-6 text-primary-600" />
-          Sidecar
+          Riddle Note
         </h1>
       </div>
 

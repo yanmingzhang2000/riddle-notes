@@ -11,8 +11,9 @@
   --ink-soft: rgba(70, 58, 47, 0.68);
   --line: rgba(70, 58, 47, 0.16);
   --line-strong: rgba(70, 58, 47, 0.28);
-  --font-sans: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-  --font-book: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --font-sans: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+  --font-display: "Baskerville", "Iowan Old Style", "Palatino Linotype", "Book Antiqua", "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun", Georgia, serif;
+  --font-label: var(--font-sans);
   --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   --container: 1240px;
   --section-space: clamp(5.5rem, 8vw, 8rem);
@@ -98,7 +99,7 @@ h3 {
 
 h1 {
   margin-bottom: 0.8rem;
-  font-family: var(--font-book);
+  font-family: var(--font-display);
   font-size: clamp(4.6rem, 7.5vw, 7rem);
   font-weight: 500;
   letter-spacing: -0.055em;
@@ -127,7 +128,7 @@ h3 {
 .eyebrow {
   margin-bottom: 1.15rem;
   color: var(--ink-soft);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.66rem;
   font-weight: 650;
   letter-spacing: 0.16em;
@@ -200,7 +201,7 @@ h3 {
   align-items: center;
   gap: 0.65rem;
   color: var(--ink);
-  font-family: var(--font-book);
+  font-family: var(--font-display);
   font-size: 1.16rem;
   font-weight: 700;
   letter-spacing: -0.035em;
@@ -293,7 +294,7 @@ h3 {
   max-width: 24rem;
   margin-bottom: 1.65rem;
   color: var(--brown);
-  font-family: var(--font-book);
+  font-family: var(--font-display);
   font-size: clamp(1.24rem, 2vw, 1.58rem);
   font-style: italic;
   line-height: 1.35;
@@ -317,7 +318,7 @@ h3 {
 .hero__meta {
   margin: 0;
   color: rgba(70, 58, 47, 0.56);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.67rem;
   letter-spacing: 0.025em;
 }
@@ -391,7 +392,7 @@ h3 {
   top: 1.3rem;
   left: 1.5rem;
   color: rgba(70, 58, 47, 0.48);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.58rem;
   letter-spacing: 0.08em;
 }
@@ -431,7 +432,7 @@ h3 {
   display: grid;
   justify-items: center;
   color: var(--brown);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.55rem;
   opacity: 0;
   transform: translate(-50%, -50%) translateY(6px);
@@ -460,7 +461,7 @@ h3 {
 .footprints {
   position: absolute;
   color: rgba(70, 58, 47, 0.43);
-  font-family: var(--font-book);
+  font-family: var(--font-display);
   font-size: 1.25rem;
   letter-spacing: 0.1em;
   transform: rotate(-25deg);
@@ -515,7 +516,7 @@ h3 {
   display: flex;
   justify-content: space-between;
   color: rgba(70, 58, 47, 0.52);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.56rem;
   letter-spacing: 0.08em;
 }
@@ -528,7 +529,7 @@ h3 {
 .notebook-page__kicker {
   margin: 2.35rem 0 0.65rem;
   color: var(--seal);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.58rem;
   font-weight: 650;
   letter-spacing: 0.12em;
@@ -536,7 +537,7 @@ h3 {
 
 .notebook-page h2 {
   margin-bottom: 0.55rem;
-  font-family: var(--font-book);
+  font-family: var(--font-display);
   font-size: clamp(1.8rem, 3vw, 2.4rem);
   font-weight: 600;
 }
@@ -571,7 +572,7 @@ h3 {
   padding: 0.2rem 0.46rem;
   color: var(--brown);
   background: rgba(137, 155, 131, 0.15);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.56rem;
 }
 
@@ -605,7 +606,7 @@ h3 {
   bottom: -2rem;
   margin: 0;
   color: rgba(70, 58, 47, 0.58);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.61rem;
 }
 
@@ -744,7 +745,7 @@ h3 {
 .map-node span {
   padding: 0.15rem 0.34rem;
   background: rgba(232, 224, 209, 0.82);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.62rem;
 }
 
@@ -763,7 +764,7 @@ h3 {
 .map-footsteps {
   position: absolute;
   color: rgba(70, 58, 47, 0.34);
-  font-family: var(--font-book);
+  font-family: var(--font-display);
   font-size: 1.3rem;
   letter-spacing: 0.16em;
 }
@@ -785,7 +786,7 @@ h3 {
   right: 3rem;
   bottom: 2.6rem;
   color: rgba(70, 58, 47, 0.46);
-  font-family: var(--font-book);
+  font-family: var(--font-display);
   font-size: 0.72rem;
   line-height: 1.1;
   text-align: center;
@@ -807,7 +808,7 @@ h3 {
   display: flex;
   justify-content: space-between;
   color: rgba(70, 58, 47, 0.48);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.54rem;
   letter-spacing: 0.08em;
 }
@@ -815,7 +816,7 @@ h3 {
 .prompt-note__place {
   margin: 4rem 0 0.5rem;
   color: var(--seal);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.62rem;
   font-weight: 650;
   letter-spacing: 0.12em;
@@ -824,7 +825,7 @@ h3 {
 .prompt-note h3 {
   min-height: 3.1rem;
   margin-bottom: 0.7rem;
-  font-family: var(--font-book);
+  font-family: var(--font-display);
   font-size: 1.55rem;
   line-height: 1.25;
 }
@@ -853,7 +854,7 @@ h3 {
   z-index: 6;
   margin: 0;
   color: rgba(70, 58, 47, 0.47);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.55rem;
 }
 
@@ -886,7 +887,7 @@ h3 {
   display: block;
   margin-bottom: 3.25rem;
   color: var(--gold);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.64rem;
 }
 
@@ -935,7 +936,7 @@ h3 {
 
 .compact-flow__step span {
   color: var(--gold);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.61rem;
 }
 
@@ -1035,14 +1036,14 @@ h3 {
 }
 
 .download-copy h2 {
-  font-family: var(--font-book);
+  font-family: var(--font-display);
   font-weight: 600;
 }
 
 .download-version {
   margin-bottom: 1.35rem;
   color: var(--seal);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.68rem;
 }
 
@@ -1075,7 +1076,7 @@ h3 {
 
 .install-ledger__head span:last-child {
   color: var(--ink-soft);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.59rem;
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -1097,7 +1098,7 @@ h3 {
 
 .install-steps li > span {
   color: var(--gold);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.64rem;
 }
 
@@ -1110,7 +1111,7 @@ code {
   padding: 0.12rem 0.3rem;
   color: var(--brown);
   background: rgba(232, 224, 209, 0.64);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.79em;
 }
 
@@ -1155,13 +1156,13 @@ code {
 
 .footer-brand strong {
   color: var(--ink);
-  font-family: var(--font-book);
+  font-family: var(--font-display);
   font-size: 1.25rem;
 }
 
 .footer-brand p {
   margin: 0.22rem 0 0;
-  font-family: var(--font-book);
+  font-family: var(--font-display);
   font-size: 0.82rem;
   font-style: italic;
 }
@@ -1180,7 +1181,7 @@ code {
 .site-footer__bottom {
   padding-top: 1rem;
   border-top: 1px solid var(--line);
-  font-family: var(--font-mono);
+  font-family: var(--font-label);
   font-size: 0.61rem;
 }
 
@@ -1571,4 +1572,11 @@ code {
     opacity: 1;
     transform: translate(-50%, -50%);
   }
+}
+
+/* Keep technical values distinct without turning the whole page into a dashboard. */
+code,
+.download-version,
+.install-ledger__head span:last-child {
+  font-family: var(--font-mono);
 }
