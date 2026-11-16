@@ -35,8 +35,10 @@ export const CHATGPT_SELECTORS: PlatformSelectors = {
   userMessage: [
     '[data-testid="user-message"]',
     '[data-message-author-role="user"]',
+    '[data-user-message-bubble]',
   ],
   copyButton: [
+    'button[data-testid="copy-turn-action-button"]',
     'button[aria-label="Copy"]',
     'button[aria-label="复制"]',
     'button[aria-label="Copy code"]',
@@ -52,6 +54,26 @@ export const CHATGPT_SELECTORS: PlatformSelectors = {
     'header',
   ],
 };
+
+/**
+ * ChatGPT 新版页面（按"轮"分组）的选择器
+ *
+ * 新版 DOM 没有 data-message-author-role / .markdown / article，
+ * 一个 [data-turn-key] 容器同时包含一轮对话里的提问和回复：
+ * - 提问：[data-user-message-bubble]，其按钮的 aria-label 为"复制消息"/"Copy message"
+ * - 回复：下方按钮排的复制按钮 aria-label 为"复制"/"Copy"（与上面的"复制消息"不同，属性精确匹配不会混淆）
+ * - h4[data-conversation-role] 是给读屏用的"你说："/"ChatGPT 说："标题，提取文本时需要去掉
+ */
+export const CHATGPT_TURN_SELECTORS = {
+  turn: '[data-turn-key]',
+  userBubble: '[data-user-message-bubble]',
+  roleHeading: 'h4[data-conversation-role]',
+  replyCopyButton: [
+    'button[data-testid="copy-turn-action-button"]',
+    'button[aria-label="Copy"]',
+    'button[aria-label="复制"]',
+  ].join(', '),
+} as const;
 
 /**
  * Claude 选择器配置
