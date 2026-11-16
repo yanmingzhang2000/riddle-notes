@@ -249,8 +249,13 @@ function injectStarButtons() {
       return;
     }
 
-    // 策略1：查找现有的按钮区域（如复制按钮附近）
-    let buttonContainer = findExistingButtonContainer(message);
+    // 策略0：适配器明确知道放在哪里（如 Gemini 回复下方的按钮排）
+    let buttonContainer = currentAdapter!.findButtonContainer?.(message) ?? null;
+
+    if (!buttonContainer) {
+      // 策略1：查找现有的按钮区域（如复制按钮附近）
+      buttonContainer = findExistingButtonContainer(message);
+    }
     
     if (!buttonContainer) {
       // 策略2：查找合适的父容器来添加按钮

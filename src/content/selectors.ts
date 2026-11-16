@@ -252,6 +252,35 @@ export const GEMINI_SELECTORS: PlatformSelectors = {
 };
 
 /**
+ * Gemini 新版页面（自定义元素 + 按"轮"分组）的选择器
+ *
+ * 一轮对话在 .conversation-container 里，由 <user-query> 和 <model-response> 两个兄弟元素组成：
+ * - 提问文字在 p.query-text-line 里，另有一个给读屏用的 .cdk-visually-hidden 标题（"你说"）
+ * - 回复正文在 <message-content> 里，回复下方的按钮排是 .buttons-container-v2
+ *   （点赞 / 点踩 / 重新生成 / 复制 / 更多），回复生成完成后才会出现
+ * - 代码块（<code-block>）头部也有复制按钮，不能当成回复的按钮排
+ *
+ * 选择器依据社区用户脚本里的 DOM 结构整理，Gemini 改版后在这里调整即可
+ */
+export const GEMINI_TURN_SELECTORS = {
+  // 回复容器，按优先级依次尝试 closest
+  replyContainers: ['model-response', '.response-container'],
+  // 回复下方的按钮排
+  actionRow: '.buttons-container-v2',
+  // 按钮排的外层组件，找不到 .buttons-container-v2 时兜底
+  actionRowHost: 'message-actions',
+  // 回复正文
+  replyContent: 'message-content, .markdown-main-panel, .model-response-text',
+  // 用户提问
+  userQuery: 'user-query',
+  userQueryLine: '.query-text-line',
+  // 一轮对话的容器
+  turn: '.conversation-container',
+  // 读屏专用的隐藏标题（"你说" / "Gemini 说"），提取文本时要去掉
+  visuallyHidden: '.cdk-visually-hidden',
+} as const;
+
+/**
  * WorkBuddy 选择器配置
  * 更新时间：2026年11月
  * 

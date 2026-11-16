@@ -14,6 +14,11 @@ export interface PlatformAdapter {
   findAssistantMessages(): Element[];
   findUserMessage(assistantMessage: Element): Element | null;
   findCopyButtons(): Element[];
+  /**
+   * 可选：直接指定某条回复里放置星标的容器（如回复下方的按钮排）。
+   * 未实现或返回 null 时，content script 会按复制按钮 / 通用类名推断。
+   */
+  findButtonContainer?(message: Element): Element | null;
   extractMessageText(message: Element): string;
   extractAttachments(message: Element): AttachmentDraft[];
   getConversationUrl(): string;

@@ -1,6 +1,6 @@
 import { BaseAdapter } from './base-adapter';
 import { AttachmentDraft } from '@shared/types';
-import { GEMINI_SELECTORS, PLATFORM_DOMAINS } from '../selectors';
+import { GEMINI_SELECTORS, GEMINI_TURN_SELECTORS, PLATFORM_DOMAINS } from '../selectors';
 
 /**
  * Gemini 平台适配器
@@ -10,7 +10,8 @@ import { GEMINI_SELECTORS, PLATFORM_DOMAINS } from '../selectors';
  * 
  * Gemini Web 界面特点：
  * - 使用 Material Design (mat-*) 组件
- * - 消息有明确的 role 属性
+ * - 新版页面用 <user-query> / <model-response> 自定义元素按"轮"组织
+ * - 回复下方的按钮排（.buttons-container-v2）只在回复生成完成后出现
  * - 支持文件上传和图片预览
  * - 可能使用虚拟列表技术
  */
@@ -26,9 +27,18 @@ export class GeminiAdapter extends BaseAdapter {
 
   /**
    * 查找所有 AI 回复消息
-   * Gemini 特定的实现，优化消息查找
+   * 新版页面按"回复下方的按钮排"定位回复容器，回复生成中没有按钮排，所以只有完成后才会出现星标；
+   * 旧版页面（没有 <user-query> / <model-response>）回退到 role / 类名查找
    */
   findAssistantMessages(): Element[] {
+    const replies = this.findReplyContainers();
+    if (replies.length > 0) return replies;
+
+    // 新版页面但还没有任何回复生成完成：不要走下面的类名猜测，否则星标会被插到页面其他位置
+    if (document.querySelector(`${GEMINI_TURN_SELECTORS.userQuery}, ${GEMINI_TURN_SELECTORS.replyContainers[0]}`)) {
+      return [];
+    }
+
     const messages = super.findAssistantMessages();
     
     // 如果没有找到消息，尝试查找 Material Design 风格的消息
@@ -72,6 +82,12 @@ export class GeminiAdapter extends BaseAdapter {
    * Gemini 特定的消息查找优化
    */
   findUserMessage(assistantMessage: Element): Element | null {
+    // 新版：同一轮里 <user-query> 就在 <model-response> 前面
+    if (this.isReplyContainer(assistantMessage)) {
+      const query = this.findPrecedingUserQuery(assistantMessage);
+      if (query) return query;
+    }
+
     // 方法1：使用基础适配器的实现
     const userMessage = super.findUserMessage(assistantMessage);
     if (userMessage) return userMessage;
@@ -127,6 +143,106 @@ export class GeminiAdapter extends BaseAdapter {
     }
 
     return nearestUserMessage;
+  }
+
+  /**
+   * 星标按钮的放置位置：回复下方的按钮排（点赞 / 点踩 / 复制 / 更多 所在的那一行）
+   * 非新版回复容器返回 null，由 content script 按通用规则推断
+   */
+  findButtonContainer(message: Element): Element | null {
+    if (!this.isReplyContainer(message)) return null;
+    return (
+      message.querySelector(GEMINI_TURN_SELECTORS.actionRow) ||
+      message.querySelector(GEMINI_TURN_SELECTORS.actionRowHost)
+    );
+  }
+
+  /**
+   * 提取消息文本
+   * - 提问：只取 p.query-text-line，避免带上读屏用的"你说"标题
+   * - 回复：只取正文容器，去掉按钮排、思路摘要等
+   */
+  extractMessageText(message: Element): string {
+    if (message.matches(GEMINI_TURN_SELECTORS.userQuery)) {
+      const lines = Array.from(message.querySelectorAll(GEMINI_TURN_SELECTORS.userQueryLine))
+        .map(line => line.textContent?.trim() || '')
+        .filter(Boolean);
+      if (lines.length > 0) return lines.join('\n');
+      return this.extractTextWithout(message, GEMINI_TURN_SELECTORS.visuallyHidden);
+    }
+
+    if (this.isReplyContainer(message)) {
+      const content = message.querySelector(GEMINI_TURN_SELECTORS.replyContent);
+      if (content) {
+        return this.extractTextWithout(content, GEMINI_TURN_SELECTORS.visuallyHidden);
+      }
+      return this.extractTextWithout(
+        message,
+        [
+          GEMINI_TURN_SELECTORS.actionRow,
+          GEMINI_TURN_SELECTORS.actionRowHost,
+          GEMINI_TURN_SELECTORS.visuallyHidden,
+        ].join(', ')
+      );
+    }
+
+    return super.extractMessageText(message);
+  }
+
+  /**
+   * 通过回复下方的按钮排反查所有已生成完成的回复容器
+   */
+  private findReplyContainers(): Element[] {
+    const replies = new Set<Element>();
+    const rows = document.querySelectorAll(
+      `${GEMINI_TURN_SELECTORS.actionRow}, ${GEMINI_TURN_SELECTORS.actionRowHost}`
+    );
+
+    rows.forEach(row => {
+      for (const selector of GEMINI_TURN_SELECTORS.replyContainers) {
+        const reply = row.closest(selector);
+        if (reply) {
+          replies.add(reply);
+          break;
+        }
+      }
+    });
+
+    return Array.from(replies);
+  }
+
+  private isReplyContainer(element: Element): boolean {
+    return GEMINI_TURN_SELECTORS.replyContainers.some(selector => element.matches(selector));
+  }
+
+  /**
+   * 从回复容器往前找同一轮的 <user-query>
+   * 逐层检查前面的兄弟元素（由近到远），到达一轮对话的容器就停止，避免取到上一轮的提问
+   */
+  private findPrecedingUserQuery(reply: Element): Element | null {
+    let current: Element | null = reply;
+
+    while (current && current !== document.body && !current.matches(GEMINI_TURN_SELECTORS.turn)) {
+      let prev: Element | null = current.previousElementSibling;
+      while (prev) {
+        if (prev.matches(GEMINI_TURN_SELECTORS.userQuery)) return prev;
+        const nested = prev.querySelectorAll(GEMINI_TURN_SELECTORS.userQuery);
+        if (nested.length > 0) return nested[nested.length - 1];
+        prev = prev.previousElementSibling;
+      }
+      current = current.parentElement;
+    }
+
+    return null;
+  }
+
+  /**
+   * 克隆元素并移除指定节点后再提取文本，避免修改页面 DOM
+   */
+  private extractTextWithout(element: Element, removeSelector: string): string {
+    const clone = element.cloneNode(true) as Element;
+    clone.querySelectorAll(removeSelector).forEach(el => el.remove());
+    return super.extractMessageText(clone);
   }
 
   /**
