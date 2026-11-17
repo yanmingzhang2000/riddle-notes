@@ -1,0 +1,720 @@
+/*
+ * Hero 首屏样式
+ *
+ * 动画约定:元素的默认样式就是动画结束后的状态,动画只写 from 关键帧并使用
+ * animation-fill-mode: backwards。这样 index.css 里 prefers-reduced-motion 的
+ * `animation: none !important` 生效时,页面直接显示"收藏完成"的最终画面。
+ */
+
+/* ---------- 版面与纸张质感 ---------- */
+
+.hero {
+  background:
+    linear-gradient(90deg, rgba(177, 138, 69, 0.025), transparent 22%, transparent 78%, rgba(70, 58, 47, 0.025)),
+    var(--parchment);
+}
+
+.hero::before {
+  position: absolute;
+  inset: 84px 2.4% 24px;
+  z-index: -1;
+  border-top: 1px solid rgba(177, 138, 69, 0.1);
+  border-bottom: 1px solid rgba(70, 58, 47, 0.08);
+  content: "";
+  pointer-events: none;
+}
+
+.hero::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+  box-shadow: inset 0 0 150px rgba(70, 58, 47, 0.055);
+}
+
+/* 只在双栏宽度下覆盖;1100px 以下沿用 index.css 的单栏 */
+@media (min-width: 1101px) {
+  .hero__layout {
+    grid-template-columns: minmax(340px, 0.74fr) minmax(0, 1.26fr);
+  }
+}
+
+.hero h1 {
+  max-width: none;
+  margin-bottom: 0.9rem;
+  color: #29261f;
+  font-family: var(--font-display);
+  font-size: clamp(3.3rem, 4.8vw, 4.9rem);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  text-shadow: 0 1px rgba(255, 255, 255, 0.42);
+}
+
+.hero h1 span {
+  display: block;
+  white-space: nowrap;
+}
+
+.hero__subtitle {
+  margin-bottom: 1.3rem;
+  font-size: clamp(1.05rem, 1.45vw, 1.25rem);
+}
+
+.hero__lead {
+  max-width: 28rem;
+  margin-bottom: 1.55rem;
+  font-size: 0.98rem;
+  line-height: 1.78;
+  text-wrap: balance;
+}
+
+.hero__copy > :nth-child(1) { animation-delay: 40ms; }
+.hero__copy > :nth-child(2) { animation-delay: 110ms; }
+.hero__copy > :nth-child(3) { animation-delay: 190ms; }
+.hero__copy > :nth-child(4) { animation-delay: 270ms; }
+.hero__copy > :nth-child(5) { animation-delay: 350ms; }
+
+/* ---------- 右侧舞台 ---------- */
+
+.hero-visual {
+  min-width: 0;
+  width: 100%;
+}
+
+.hero-stage {
+  --map-x: 0px;
+  --map-y: 0px;
+  --note-x: 0px;
+  --note-y: 0px;
+  /* 舞台宽度 / 720 = 1 个设计单位;只能用在 .hero-stage 的子元素上 */
+  --u: calc(100cqw / 720);
+  position: relative;
+  aspect-ratio: 720 / 500;
+  container-type: inline-size;
+  animation: ink-reveal 900ms 180ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.hero-scene {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+/* ---------- 地图 ---------- */
+
+.hero-map {
+  position: absolute;
+  inset: 0;
+  filter: drop-shadow(0 22px 34px rgba(70, 58, 47, 0.14));
+  transform: translate3d(var(--map-x), var(--map-y), 0) rotate(-0.6deg);
+  transition: transform 650ms cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+.hero-map__sheet {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  clip-path: polygon(1% 3%, 98% 0, 100% 95%, 64% 99%, 38% 96%, 0 100%);
+  background:
+    /* 纵向和横向折痕:一条暗线加一条亮线 */
+    linear-gradient(90deg, transparent calc(50% - 1px), rgba(70, 58, 47, 0.1) 50%, rgba(255, 253, 246, 0.5) calc(50% + 1px), transparent calc(50% + 2px)),
+    linear-gradient(180deg, transparent calc(50% - 1px), rgba(70, 58, 47, 0.08) 50%, rgba(255, 253, 246, 0.45) calc(50% + 1px), transparent calc(50% + 2px)),
+    radial-gradient(ellipse at 18% 14%, rgba(251, 248, 240, 0.55), transparent 55%),
+    radial-gradient(ellipse at 88% 92%, rgba(138, 91, 75, 0.07), transparent 60%),
+    var(--aged-paper);
+  box-shadow: inset 0 0 90px rgba(70, 58, 47, 0.09);
+}
+
+.hero-map__sheet::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  opacity: 0.14;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence baseFrequency='.6' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.18'/%3E%3C/svg%3E");
+}
+
+.hero-map__sheet svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hero-contour {
+  fill: none;
+  stroke: rgba(70, 58, 47, 0.34);
+  stroke-width: 0.9;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.hero-contour--index {
+  stroke: rgba(70, 58, 47, 0.52);
+  stroke-width: 1.5;
+}
+
+.hero-contour--dashed {
+  stroke: rgba(70, 58, 47, 0.42);
+  stroke-dasharray: 5 5;
+}
+
+.hero-river {
+  fill: none;
+  stroke: var(--map-blue);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  opacity: 0.8;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ---------- 平台节点 ---------- */
+
+.hero-node {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  transform: translate(-7px, -50%);
+  animation: hero-node-in 520ms cubic-bezier(0.2, 0.75, 0.25, 1) backwards;
+  animation-delay: calc(240ms + var(--i, 0) * 90ms);
+}
+
+.hero-node__pin {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--brown);
+  border-radius: 50%;
+  background: var(--paper);
+}
+
+.hero-node--live .hero-node__pin {
+  background: var(--gold);
+  box-shadow: 0 0 0 5px rgba(177, 138, 69, 0.26);
+}
+
+.hero-node__tag {
+  display: grid;
+  gap: 0.12rem;
+  padding: 0.34rem 0.6rem 0.4rem;
+  border: 1px solid var(--line-strong);
+  background: rgba(251, 248, 240, 0.97);
+  box-shadow: 0 6px 16px rgba(70, 58, 47, 0.1);
+}
+
+.hero-node--pending .hero-node__tag {
+  border-color: rgba(70, 58, 47, 0.42);
+  border-style: dashed;
+  background: rgba(251, 248, 240, 0.92);
+}
+
+.hero-node__row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
+.hero-node__row strong {
+  color: var(--ink);
+  font-size: max(0.82rem, calc(var(--u) * 14));
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.hero-node__row em {
+  padding: 0.02rem 0.32rem;
+  border: 1px solid rgba(70, 58, 47, 0.32);
+  color: var(--brown);
+  font-family: var(--font-label);
+  font-size: 0.64rem;
+  font-style: normal;
+  line-height: 1.45;
+  white-space: nowrap;
+}
+
+.hero-node--live .hero-node__row em {
+  border-color: rgba(177, 138, 69, 0.65);
+  color: #5f4513;
+  background: rgba(177, 138, 69, 0.22);
+}
+
+.hero-node__domain {
+  color: var(--brown);
+  font-family: var(--font-mono);
+  font-size: max(0.68rem, calc(var(--u) * 11.5));
+  line-height: 1.3;
+}
+
+/* ---------- ChatGPT 回复卡与星标 ---------- */
+
+.hero-reply {
+  position: absolute;
+  z-index: 3;
+  top: 39.2%;
+  left: 5%;
+  width: 37.2%;
+  padding: calc(var(--u) * 12) calc(var(--u) * 14) calc(var(--u) * 8);
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--paper);
+  box-shadow: 0 16px 34px rgba(70, 58, 47, 0.16);
+  animation: hero-reply-in 560ms 700ms cubic-bezier(0.2, 0.75, 0.25, 1) backwards;
+}
+
+.hero-reply p {
+  margin: 0 0 calc(var(--u) * 8);
+  padding-left: calc(var(--u) * 10);
+  border-left: 2px solid var(--sage);
+  color: var(--brown);
+  font-size: calc(var(--u) * 12.5);
+  line-height: 1.65;
+}
+
+.hero-reply__tools {
+  display: flex;
+  align-items: center;
+}
+
+.hero-reply__tool,
+.hero-reply__star {
+  display: grid;
+  width: calc(var(--u) * 28);
+  height: calc(var(--u) * 28);
+  place-items: center;
+}
+
+.hero-reply__tool {
+  color: #6b7280;
+}
+
+.hero-reply__tool svg {
+  width: calc(var(--u) * 15);
+  height: calc(var(--u) * 15);
+}
+
+/* 默认就是"已收藏"的样子(#fbbf24),与扩展里 .sidecar-star-btn.saved 一致 */
+.hero-reply__star {
+  position: relative;
+  border-radius: 4px;
+  color: #fbbf24;
+  animation: hero-star-pop 560ms 1000ms cubic-bezier(0.2, 0.75, 0.25, 1) backwards;
+}
+
+.hero-reply__star svg {
+  width: calc(var(--u) * 16);
+  height: calc(var(--u) * 16);
+  stroke: #c8921a;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+}
+
+.hero-reply__star::after {
+  position: absolute;
+  inset: -2px;
+  border: 1px solid rgba(251, 191, 36, 0.75);
+  border-radius: 6px;
+  content: "";
+  opacity: 0;
+  animation: hero-star-ring 720ms 1060ms ease-out backwards;
+}
+
+/* ---------- 墨迹路径 ---------- */
+
+.hero-ink {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.hero-ink path {
+  fill: none;
+  stroke-dasharray: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: hero-ink-draw 1200ms 1300ms cubic-bezier(0.45, 0, 0.25, 1) backwards;
+}
+
+.hero-ink__under {
+  stroke: rgba(244, 239, 227, 0.82);
+  stroke-width: 7;
+}
+
+.hero-ink__line {
+  stroke: var(--brown);
+  stroke-width: 1.8;
+}
+
+.hero-thread {
+  display: none;
+}
+
+/* ---------- 手札 ---------- */
+
+.hero-notebook {
+  position: absolute;
+  z-index: 2;
+  top: 21%;
+  left: 52.5%;
+  width: 46%;
+  height: 73%;
+  isolation: isolate;
+  filter: drop-shadow(0 22px 26px rgba(70, 58, 47, 0.22));
+  transform: translate3d(var(--note-x), var(--note-y), 0) rotate(1.2deg);
+  transition: transform 680ms cubic-bezier(0.2, 0.75, 0.25, 1);
+  animation: hero-notebook-in 700ms 500ms cubic-bezier(0.2, 0.75, 0.25, 1) backwards;
+}
+
+.hero-notebook__cover {
+  position: absolute;
+  inset: -8px -9px -10px -8px;
+  z-index: 1;
+  border-radius: 5px;
+  background: linear-gradient(135deg, #6a5642, #4d3d2f);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.hero-notebook__cover::after {
+  position: absolute;
+  inset: 5px;
+  border: 1px dashed rgba(251, 248, 240, 0.3);
+  border-radius: 3px;
+  content: "";
+}
+
+.hero-notebook__pages {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 34% 66%;
+  height: 100%;
+}
+
+.hero-page {
+  position: relative;
+  background-color: #fbf6ea;
+}
+
+/* 左页完全留白,只有纸的质感和装订线的阴影 */
+.hero-page--left {
+  border-radius: 3px 0 0 3px;
+  background-image:
+    linear-gradient(90deg, transparent 72%, rgba(70, 58, 47, 0.12)),
+    radial-gradient(ellipse at 20% 12%, rgba(177, 138, 69, 0.06), transparent 60%);
+  box-shadow: -2px 1px 0 #ede4d2, -4px 2px 0 #e2d8c4;
+}
+
+.hero-page--right {
+  border-radius: 0 3px 3px 0;
+  background-image:
+    linear-gradient(90deg, rgba(70, 58, 47, 0.14), transparent 9%),
+    repeating-linear-gradient(180deg, transparent 0 27px, rgba(135, 153, 160, 0.15) 27px 28px);
+  box-shadow: 2px 1px 0 #ede4d2, 4px 2px 0 #e2d8c4;
+}
+
+.hero-ribbon {
+  position: absolute;
+  z-index: 0;
+  bottom: -26px;
+  width: 12px;
+  height: 40px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
+}
+
+.hero-ribbon--seal {
+  left: 38%;
+  background: var(--seal);
+}
+
+.hero-ribbon--sage {
+  left: calc(38% + 20px);
+  background: var(--sage);
+}
+
+.hero-note {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 1.35rem 1.1rem 1rem 1.5rem;
+  color: var(--brown);
+}
+
+.hero-note > * {
+  animation: hero-note-in 620ms cubic-bezier(0.2, 0.75, 0.25, 1) backwards;
+  animation-delay: calc(2300ms + var(--i, 0) * 100ms);
+}
+
+.hero-note__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: rgba(70, 58, 47, 0.66);
+  font-family: var(--font-label);
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+}
+
+.hero-note__star {
+  width: 16px;
+  height: 16px;
+  color: #fbbf24;
+  stroke: #c8921a;
+  stroke-width: 0.8;
+  stroke-linejoin: round;
+}
+
+.hero-note__title {
+  margin: 1.5rem 0 0.4rem;
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: max(1.05rem, calc(var(--u) * 21));
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.hero-note__source {
+  margin: 0;
+  color: var(--brown);
+  font-family: var(--font-label);
+  font-size: 0.72rem;
+}
+
+.hero-note__rule {
+  display: block;
+  width: 44px;
+  height: 1px;
+  margin: 1rem 0;
+  background: var(--gold);
+}
+
+.hero-note__excerpt {
+  margin: 0 0 1rem;
+  font-size: max(0.76rem, calc(var(--u) * 12.5));
+  line-height: 1.75;
+}
+
+.hero-note__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.hero-note__tags span {
+  padding: 0.18rem 0.5rem;
+  background: rgba(137, 155, 131, 0.2);
+  color: var(--brown);
+  font-family: var(--font-label);
+  font-size: 0.68rem;
+}
+
+.hero-visual__caption {
+  margin: 1.7rem 0 0;
+  color: rgba(70, 58, 47, 0.6);
+  font-family: var(--font-display);
+  font-size: 0.76rem;
+  font-style: italic;
+  text-align: right;
+}
+
+/* ---------- 动画 ---------- */
+
+@keyframes hero-node-in {
+  from {
+    opacity: 0;
+    transform: translate(-7px, calc(-50% + 6px));
+  }
+}
+
+@keyframes hero-reply-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* 点击星标:灰色 -> 稍微放大并变金色 -> 回到原尺寸 */
+@keyframes hero-star-pop {
+  from {
+    color: #6b7280;
+    transform: scale(1);
+  }
+  42% {
+    color: #fbbf24;
+    transform: scale(1.32);
+  }
+}
+
+@keyframes hero-star-ring {
+  from {
+    opacity: 0.8;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.7);
+  }
+}
+
+@keyframes hero-ink-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+@keyframes hero-notebook-in {
+  from {
+    opacity: 0;
+    transform: translate3d(var(--note-x), calc(var(--note-y) + 14px), 0) rotate(1.2deg);
+  }
+}
+
+@keyframes hero-note-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
+  }
+}
+
+@keyframes hero-thread-draw {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+/* ---------- 平板 ---------- */
+
+@media (max-width: 1100px) {
+  .hero-visual {
+    width: min(100%, 760px);
+  }
+}
+
+/* ---------- 移动端:只保留 ChatGPT 节点和手札,纵向排列 ---------- */
+
+@media (max-width: 760px) {
+  .hero h1 {
+    font-size: clamp(3rem, 14vw, 3.8rem);
+  }
+
+  .hero__lead {
+    max-width: 22rem;
+    font-size: 0.93rem;
+  }
+
+  .hero::before {
+    inset: 66px 1rem 20px;
+  }
+
+  .hero-stage {
+    --u: 1px;
+    aspect-ratio: auto;
+    animation: none;
+  }
+
+  .hero-scene {
+    position: relative;
+    inset: auto;
+    padding: 1.2rem 1rem 1.25rem;
+  }
+
+  .hero-map {
+    transform: rotate(-0.4deg);
+  }
+
+  .hero-node--pending {
+    display: none;
+  }
+
+  .hero-node--live {
+    position: relative;
+    top: auto !important;
+    left: auto !important;
+    width: max-content;
+    margin-bottom: 1rem;
+    transform: none;
+    animation: none;
+  }
+
+  .hero-reply {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: auto;
+  }
+
+  .hero-ink {
+    display: none;
+  }
+
+  /* 用一条竖向墨线代替桌面端的曲线路径 */
+  .hero-thread {
+    position: relative;
+    z-index: 5;
+    display: block;
+    width: 2px;
+    height: 5.75rem;
+    margin: -2.75rem 0 0 calc(1rem + 14px + 98px);
+    border-radius: 1px;
+    background: linear-gradient(var(--gold), var(--brown));
+    transform-origin: top;
+    animation: hero-thread-draw 1200ms 1300ms cubic-bezier(0.45, 0, 0.25, 1) backwards;
+  }
+
+  .hero-notebook {
+    position: relative;
+    top: auto;
+    left: auto;
+    width: calc(100% - 1rem);
+    height: auto;
+    margin: 0 0.5rem 0 auto;
+    transform: rotate(0.6deg);
+  }
+
+  .hero-notebook__pages {
+    height: auto;
+    min-height: 330px;
+  }
+
+  .hero-note {
+    position: relative;
+    inset: auto;
+  }
+
+  .hero-ribbon--seal {
+    left: 30%;
+  }
+
+  .hero-ribbon--sage {
+    left: calc(30% + 20px);
+  }
+
+  .hero-visual__caption {
+    margin-top: 2rem;
+  }
+}
+
+@media (max-width: 760px) {
+  .hero__copy > * {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    animation: none;
+  }
+}
+
+@media (hover: none), (pointer: coarse) {
+  .hero-map,
+  .hero-notebook {
+    transition: none;
+  }
+}

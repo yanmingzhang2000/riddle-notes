@@ -42,7 +42,7 @@ export default function Download({ version }: DownloadProps) {
             <li><span>01</span><p>下载安装包并解压到固定位置</p></li>
             <li><span>02</span><p>打开 <code>chrome://extensions</code>，开启开发者模式</p></li>
             <li><span>03</span><p>点击“加载已解压的扩展程序”，选择解压后的文件夹</p></li>
-            <li><span>04</span><p>打开 ChatGPT 等页面，在回复旁点击星标</p></li>
+            <li><span>04</span><p>打开 ChatGPT，在回复旁点击星标</p></li>
           </ol>
           <div className="release-note">
             <span>当前版本包含</span>
