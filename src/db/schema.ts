@@ -131,15 +131,8 @@ export async function initializeDefaultData() {
   const folderCount = await db.folders.count();
   
   if (folderCount === 0) {
-    await db.folders.bulkAdd([
-      { name: '未分类', sortOrder: 0, createdAt: new Date(), updatedAt: new Date() },
-      { name: 'AI 产品', sortOrder: 1, createdAt: new Date(), updatedAt: new Date() },
-      { name: '项目复盘', sortOrder: 2, createdAt: new Date(), updatedAt: new Date() },
-      { name: '简历与求职', sortOrder: 3, createdAt: new Date(), updatedAt: new Date() },
-      { name: '知识整理', sortOrder: 4, createdAt: new Date(), updatedAt: new Date() },
-      { name: '研究分析', sortOrder: 5, createdAt: new Date(), updatedAt: new Date() },
-      { name: '写作', sortOrder: 6, createdAt: new Date(), updatedAt: new Date() },
-    ]);
+    // 只创建"未分类"：收藏时默认存入 folderId 1（见 service-worker.ts），其余文件夹由用户自己建
+    await db.folders.add({ name: '未分类', sortOrder: 0, createdAt: new Date(), updatedAt: new Date() });
 
     await db.tags.bulkAdd([
       { name: '高频使用', createdAt: new Date() },
