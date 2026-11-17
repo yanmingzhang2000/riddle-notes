@@ -1,8 +1,17 @@
 import { db, initializeDefaultData } from '@db/schema';
+import { initOnboardingOnInstalled } from '@shared/onboarding';
 
 // 监听扩展安装
 chrome.runtime.onInstalled.addListener(async (details) => {
   console.log('[Sidecar] Extension installed:', details.reason);
+
+  // 首次使用引导状态：新安装标记为待展示，引导功能上线前的老用户升级后标记为已展示。
+  // 单独 try/catch，失败不影响下面的初始化。
+  try {
+    await initOnboardingOnInstalled(details.reason);
+  } catch (error) {
+    console.warn('[Sidecar] Failed to init onboarding state:', error);
+  }
   
   // 初始化默认数据
   await initializeDefaultData();

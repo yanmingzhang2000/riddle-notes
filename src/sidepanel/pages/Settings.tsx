@@ -15,6 +15,7 @@ import { useNavigate } from 'react-router-dom';
 import { db } from '../../db/schema';
 import { UpdateService } from '../../shared/update-service';
 import { UpdateCheckResult, UpdateError } from '../../shared/update-types';
+import { resetOnboardingState } from '../../shared/onboarding';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -123,6 +124,16 @@ const Settings: React.FC = () => {
       alert(`检查更新失败：${error instanceof Error ? error.message : '未知错误'}`);
     } finally {
       setIsChecking(false);
+    }
+  };
+
+  const handleResetOnboarding = async () => {
+    try {
+      await resetOnboardingState();
+      alert('已重置。下次打开 ChatGPT 时会再次显示新手引导。');
+    } catch (error) {
+      console.error('Reset onboarding failed:', error);
+      alert('重置失败，请重试');
     }
   };
 
@@ -483,6 +494,23 @@ const Settings: React.FC = () => {
               导入数据
             </button>
           </div>
+        </section>
+
+        {/* Onboarding */}
+        <section className="mb-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+            新手引导
+          </h3>
+
+          <button
+            onClick={handleResetOnboarding}
+            className="w-full btn-secondary text-left"
+          >
+            重新查看引导
+          </button>
+          <p className="text-xs text-gray-500 mt-1">
+            下次打开支持的 AI 网站时，再次显示首次使用引导
+          </p>
         </section>
 
         {/* Save Button */}

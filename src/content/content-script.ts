@@ -6,6 +6,7 @@ import { deepseekAdapter } from './adapters/deepseek';
 import { PlatformAdapter } from '@shared/types';
 import { STAR_BUTTON_STYLE, TOAST_STYLE } from '@shared/constants';
 import { PLATFORM_NAMES } from './selectors';
+import { showOnboardingIfNeeded } from './onboarding';
 
 // 平台适配器注册表
 const adapters: PlatformAdapter[] = [
@@ -386,6 +387,9 @@ function main() {
     childList: true,
     subtree: true,
   });
+
+  // 首次使用引导：仅白名单平台且未展示过时才会出现，内部自行处理异常，不影响上面的星标功能
+  void showOnboardingIfNeeded(currentAdapter.platformId);
 
   console.log('[Sidecar] Initialized successfully');
 }
