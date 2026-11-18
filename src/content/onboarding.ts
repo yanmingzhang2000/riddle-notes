@@ -222,7 +222,7 @@ const STEPS: OnboardingStep[] = [
   },
   {
     title: '查看手札',
-    description: '点击浏览器工具栏的 Riddle Notes 图标，打开侧边栏查看、搜索和整理收藏。',
+    description: '点击浏览器工具栏的 Riddle Notes 图标，打开侧边栏查看、搜索和整理收藏。也可以直接创建手动笔记。',
     illustration: illustrationOpenPanel,
   },
 ];
