@@ -14,7 +14,7 @@ const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-parchment">
         {/* Sidebar */}
         <Sidebar currentView={currentView} onViewChange={setCurrentView} />
         

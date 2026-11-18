@@ -73,38 +73,38 @@ const NoteEditor: React.FC = () => {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <header className="p-6 border-b border-gray-200 bg-white">
+      <header className="page-header">
         <div className="flex items-center gap-4 mb-2">
           <button
             onClick={handleCancel}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="btn-icon"
             disabled={loading}
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
-          <h2 className="text-xl font-bold text-gray-900 flex-1">
+          <h2 className="page-title text-lg flex-1">
             {isEdit ? '编辑笔记' : '新建笔记'}
           </h2>
           <button
             onClick={handleSave}
             disabled={loading}
-            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="btn-primary text-xs px-3 py-1.5 min-h-0 gap-1"
           >
-            <Save className="w-4 h-4" />
-            <span className="text-sm font-medium">{loading ? '保存中...' : '保存'}</span>
+            <Save className="w-3.5 h-3.5" />
+            <span>{loading ? '保存中...' : '保存'}</span>
           </button>
         </div>
         {error && (
-          <div className="text-sm text-red-600 mt-2">{error}</div>
+          <div className="text-xs text-seal mt-2">{error}</div>
         )}
       </header>
 
       {/* Editor */}
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-4xl mx-auto space-y-4">
+      <div className="flex-1 overflow-y-auto p-6 bg-parchment">
+        <div className="max-w-3xl mx-auto space-y-4">
           {/* Title Input */}
           <div>
-            <label htmlFor="note-title" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="note-title" className="block text-sm font-medium text-brown mb-2">
               标题（选填，留空时自动取正文第一行）
             </label>
             <input
@@ -113,14 +113,14 @@ const NoteEditor: React.FC = () => {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="输入标题..."
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="input"
               disabled={loading}
             />
           </div>
 
           {/* Content Textarea */}
           <div className="flex-1">
-            <label htmlFor="note-content" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="note-content" className="block text-sm font-medium text-brown mb-2">
               正文
             </label>
             <textarea
@@ -128,13 +128,14 @@ const NoteEditor: React.FC = () => {
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="输入笔记内容..."
-              className="w-full h-96 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 font-mono text-sm resize-none"
+              className="textarea font-mono text-sm"
+              style={{ height: '24rem' }}
               disabled={loading}
             />
           </div>
 
           {/* Tips */}
-          <div className="text-sm text-gray-500 space-y-1">
+          <div className="paper-panel text-sm meta space-y-1">
             <p>💡 支持 Markdown 语法（查看时会渲染）</p>
             <p>💡 标题和正文不能都为空</p>
           </div>
