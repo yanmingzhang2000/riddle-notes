@@ -14,6 +14,18 @@ import { db } from '../../db/schema';
 import { UpdateService } from '../../shared/update-service';
 import { UpdateCheckResult, UpdateError } from '../../shared/update-types';
 import { resetOnboardingState } from '../../shared/onboarding';
+import {
+  BackupError,
+  createBackup,
+  describeImport,
+  downloadBackupFile,
+  exportFileName,
+  getBackupCounts,
+  hasAnyData,
+  parseBackup,
+  restoreBackup,
+  safetyBackupFileName,
+} from '../../shared/backup';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -129,37 +141,9 @@ const Settings: React.FC = () => {
 
   const handleExport = async () => {
     try {
-      // 导出所有数据
-      const folders = await db.folders.toArray();
-      const tags = await db.tags.toArray();
-      const prompts = await db.prompts.toArray();
-      const promptVersions = await db.promptVersions.toArray();
-      const runs = await db.runs.toArray();
-      const attachments = await db.attachments.toArray();
-
-      const exportData = {
-        version: '1.0.0',
-        exportedAt: new Date().toISOString(),
-        folders,
-        tags,
-        prompts,
-        promptVersions,
-        runs,
-        attachments,
-      };
-
-      // 创建下载
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-        type: 'application/json',
-      });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `riddle-notes-export-${new Date().toISOString().split('T')[0]}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      alert(`导出成功！共 ${prompts.length} 条笔记`);
+      const backup = await createBackup(db);
+      downloadBackupFile(backup, exportFileName());
+      alert(`导出成功！共 ${backup.counts.prompts} 条笔记`);
     } catch (error) {
       console.error('Export failed:', error);
       alert('导出失败，请重试');
@@ -169,56 +153,52 @@ const Settings: React.FC = () => {
   const handleImport = async () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = 'application/json';
-    
+    input.accept = 'application/json,.json';
+
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) return;
 
+      // 覆盖前自动备份时记下文件名，用于在结果提示里告诉用户
+      let safetyFileName: string | null = null;
+
       try {
-        const text = await file.text();
-        const data = JSON.parse(text);
+        // 1. 先解析和校验文件。到这一步为止不会碰数据库
+        const parsed = parseBackup(await file.text());
 
-        // 校验数据结构
-        if (!data.version || !data.exportedAt) {
-          throw new Error('无效的导出文件格式');
+        // 2. 告诉用户将要发生什么，确认后才继续
+        const current = await getBackupCounts(db);
+        if (!window.confirm(describeImport(parsed.preview, current))) return;
+
+        // 3. 覆盖前先把现有数据备份成文件，防止导错了文件
+        if (hasAnyData(current)) {
+          const safetyCopy = await createBackup(db);
+          safetyFileName = safetyBackupFileName();
+          downloadBackupFile(safetyCopy, safetyFileName);
         }
 
-        if (!Array.isArray(data.prompts)) {
-          throw new Error('数据结构不正确：缺少 prompts 数组');
-        }
-
-        // 确认导入
-        const confirmed = window.confirm(
-          `即将导入 ${data.prompts.length} 条笔记，是否继续？\n\n注意：现有数据将被覆盖。`
-        );
-
-        if (!confirmed) return;
-
-        // 清空现有数据
-        await db.folders.clear();
-        await db.tags.clear();
-        await db.prompts.clear();
-        await db.promptVersions.clear();
-        await db.runs.clear();
-        await db.attachments.clear();
-
-        // 导入新数据
-        if (data.folders?.length > 0) await db.folders.bulkAdd(data.folders);
-        if (data.tags?.length > 0) await db.tags.bulkAdd(data.tags);
-        if (data.prompts?.length > 0) await db.prompts.bulkAdd(data.prompts);
-        if (data.promptVersions?.length > 0) await db.promptVersions.bulkAdd(data.promptVersions);
-        if (data.runs?.length > 0) await db.runs.bulkAdd(data.runs);
-        if (data.attachments?.length > 0) await db.attachments.bulkAdd(data.attachments);
+        // 4. 在一个事务里清空并写入。中途失败会整体回滚，现有数据保持原样
+        await restoreBackup(db, parsed.data);
 
         alert(
           `导入成功！\n` +
-          `- 文件夹: ${data.folders?.length || 0}\n` +
-          `- 笔记: ${data.prompts?.length || 0}`
+          `- 笔记: ${parsed.preview.counts.prompts}\n` +
+          `- 文件夹: ${parsed.preview.counts.folders}` +
+          (safetyFileName
+            ? `\n\n导入前的数据已自动备份，文件 ${safetyFileName} 已下载到浏览器的下载目录。`
+            : '')
         );
+        // 侧边栏等界面在启动时读取过数据，刷新后才会显示导入的内容
+        window.location.reload();
       } catch (error) {
         console.error('Import failed:', error);
-        alert(`导入失败：${error instanceof Error ? error.message : '未知错误'}`);
+        const reason = error instanceof BackupError || error instanceof Error ? error.message : '未知错误';
+        alert(
+          `导入失败：${reason}\n\n现有数据没有被改动。` +
+          (safetyFileName
+            ? `\n导入前自动下载的备份文件（${safetyFileName}）没有用上，可以删除。`
+            : '')
+        );
       }
     };
 
@@ -416,6 +396,9 @@ const Settings: React.FC = () => {
               导入数据
             </button>
           </div>
+          <p className="text-xs text-gray-500 mt-2">
+            导入会覆盖现有数据。导入前会先自动下载一份现有数据的备份。
+          </p>
         </section>
 
         {/* Onboarding */}

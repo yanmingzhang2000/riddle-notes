@@ -8,6 +8,10 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['./tests/setup.ts'],
+    // 每个测试文件在独立的进程里运行。内存里的 IndexedDB 不会在文件之间共享,
+    // 备份与恢复的测试会清空和覆盖数据库,必须保证互不污染。
+    pool: 'forks',
+    poolOptions: { forks: { isolate: true } },
   },
   resolve: {
     alias: {
