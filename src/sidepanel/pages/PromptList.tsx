@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Star, MoreVertical, ExternalLink, Copy } from 'lucide-react';
+import { Star, Bookmark, Copy } from 'lucide-react';
 import { db, Prompt } from '@db/schema';
 
 const PromptList: React.FC = () => {
@@ -8,6 +8,8 @@ const PromptList: React.FC = () => {
   const [searchParams] = useSearchParams();
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [loading, setLoading] = useState(true);
+  const [title, setTitle] = useState('全部笔记');
+  const [isFiltered, setIsFiltered] = useState(false);
 
   useEffect(() => {
     loadPrompts();
@@ -18,8 +20,12 @@ const PromptList: React.FC = () => {
     try {
       let allPrompts = await db.prompts.orderBy('updatedAt').reverse().toArray();
 
-      // 应用搜索筛选
       const searchQuery = searchParams.get('search');
+      const folderId = searchParams.get('folder');
+      const filter = searchParams.get('filter');
+      const platform = searchParams.get('platform');
+
+      // 应用搜索筛选
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         allPrompts = allPrompts.filter(p => 
@@ -29,38 +35,51 @@ const PromptList: React.FC = () => {
       }
 
       // 应用文件夹筛选
-      const folderId = searchParams.get('folder');
       if (folderId) {
         allPrompts = allPrompts.filter(p => p.folderId === parseInt(folderId));
       }
 
-      // 应用收藏筛选
-      const filter = searchParams.get('filter');
+      // 应用重要标记筛选
       if (filter === 'favorite') {
         allPrompts = allPrompts.filter(p => p.isFavorite);
       }
 
-      // 应用最近收藏筛选（最近7天）
+      // 应用最近收集筛选（最近7天）
       if (filter === 'recent') {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         allPrompts = allPrompts.filter(p => new Date(p.createdAt) >= sevenDaysAgo);
       }
 
-      // 应用待改进筛选
+      // 历史筛选：评分低于 3 的运行记录。界面已不再提供入口，保留代码以兼容旧链接
       if (filter === 'improve') {
-        // 查找评分低于3的运行记录
         const lowRatingRuns = await db.runs.where('rating').below(3).toArray();
         const promptIds = new Set(lowRatingRuns.map(r => r.promptId));
         allPrompts = allPrompts.filter(p => promptIds.has(p.id!));
       }
 
       // 应用平台筛选
-      const platform = searchParams.get('platform');
       if (platform) {
         allPrompts = allPrompts.filter(p => p.sourcePlatform === platform);
       }
 
+      // 页面标题跟随当前筛选
+      let nextTitle = '全部笔记';
+      if (searchQuery) {
+        nextTitle = `搜索「${searchQuery}」`;
+      } else if (folderId) {
+        const folder = await db.folders.get(parseInt(folderId));
+        nextTitle = folder?.name ?? '文件夹';
+      } else if (filter === 'recent') {
+        nextTitle = '最近收集';
+      } else if (filter === 'favorite') {
+        nextTitle = '重要';
+      } else if (filter || platform) {
+        nextTitle = '筛选结果';
+      }
+
+      setTitle(nextTitle);
+      setIsFiltered(Boolean(searchQuery || folderId || filter || platform));
       setPrompts(allPrompts);
     } catch (error) {
       console.error('Failed to load prompts:', error);
@@ -127,17 +146,23 @@ const PromptList: React.FC = () => {
     <div className="h-full flex flex-col">
       {/* Header */}
       <header className="p-6 border-b border-gray-200 bg-white">
-        <h2 className="text-2xl font-bold text-gray-900">全部 Prompt</h2>
-        <p className="text-sm text-gray-500 mt-1">{prompts.length} 个 Prompt</p>
+        <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+        <p className="text-sm text-gray-500 mt-1">{prompts.length} 条笔记</p>
       </header>
 
-      {/* Prompt List */}
+      {/* Note List */}
       <div className="flex-1 overflow-y-auto p-6">
         {prompts.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <Star className="w-12 h-12 mb-4 text-gray-300" />
-            <p className="text-lg font-medium">还没有收藏的 Prompt</p>
-            <p className="text-sm mt-2">在 ChatGPT 中点击星标按钮开始收藏</p>
+            {isFiltered ? (
+              <p className="text-lg font-medium">没有找到符合条件的笔记</p>
+            ) : (
+              <>
+                <p className="text-lg font-medium">还没有笔记</p>
+                <p className="text-sm mt-2">在 ChatGPT 回复旁点击星标，把值得留下的对话收进来</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid gap-4">
@@ -151,14 +176,12 @@ const PromptList: React.FC = () => {
                   <h3 className="text-lg font-semibold text-gray-900 flex-1">
                     {prompt.title}
                   </h3>
-                  <div className="flex items-center gap-2">
-                    {prompt.isFavorite && (
-                      <Star className="w-4 h-4 text-yellow-500 fill-current" />
-                    )}
-                    <button className="p-1 hover:bg-gray-100 rounded">
-                      <MoreVertical className="w-4 h-4 text-gray-400" />
-                    </button>
-                  </div>
+                  {prompt.isFavorite && (
+                    <Bookmark
+                      className="w-4 h-4 text-yellow-500 fill-current"
+                      aria-label="重要"
+                    />
+                  )}
                 </div>
 
                 {prompt.description && (
@@ -177,7 +200,7 @@ const PromptList: React.FC = () => {
                   <button
                     onClick={(e) => handleCopyPrompt(e, prompt.id!)}
                     className="p-1 hover:bg-gray-100 rounded"
-                    title="复制 Prompt 内容"
+                    title="复制提问内容"
                   >
                     <Copy className="w-3 h-3" />
                   </button>

@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { 
   ArrowLeft, 
   Save, 
-  AlertCircle, 
   Download, 
   CheckCircle, 
   XCircle, 
   RefreshCw,
   Globe,
-  Shield,
   Info
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -19,11 +17,6 @@ import { resetOnboardingState } from '../../shared/onboarding';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
-  const [apiConfig, setApiConfig] = useState({
-    baseUrl: '',
-    apiKey: '',
-    model: 'gpt-4',
-  });
   const [saving, setSaving] = useState(false);
   
   // 更新管理状态
@@ -79,9 +72,6 @@ const Settings: React.FC = () => {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // 保存 AI 配置到 Chrome Storage
-      await chrome.storage.local.set({ aiConfig: apiConfig });
-      
       // 保存更新设置
       await updateService.updateAppSettings({
         updateCheckEnabled: updateSettings.updateCheckEnabled,
@@ -165,11 +155,11 @@ const Settings: React.FC = () => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `sidecar-export-${new Date().toISOString().split('T')[0]}.json`;
+      a.download = `riddle-notes-export-${new Date().toISOString().split('T')[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
 
-      alert(`导出成功！共 ${prompts.length} 个 Prompt`);
+      alert(`导出成功！共 ${prompts.length} 条笔记`);
     } catch (error) {
       console.error('Export failed:', error);
       alert('导出失败，请重试');
@@ -200,7 +190,7 @@ const Settings: React.FC = () => {
 
         // 确认导入
         const confirmed = window.confirm(
-          `即将导入 ${data.prompts.length} 个 Prompt，是否继续？\n\n注意：现有数据将被覆盖。`
+          `即将导入 ${data.prompts.length} 条笔记，是否继续？\n\n注意：现有数据将被覆盖。`
         );
 
         if (!confirmed) return;
@@ -224,9 +214,7 @@ const Settings: React.FC = () => {
         alert(
           `导入成功！\n` +
           `- 文件夹: ${data.folders?.length || 0}\n` +
-          `- Prompt: ${data.prompts?.length || 0}\n` +
-          `- 版本: ${data.promptVersions?.length || 0}\n` +
-          `- 运行记录: ${data.runs?.length || 0}`
+          `- 笔记: ${data.prompts?.length || 0}`
         );
       } catch (error) {
         console.error('Import failed:', error);
@@ -266,7 +254,7 @@ const Settings: React.FC = () => {
               <Info className="w-5 h-5 text-blue-600 mt-0.5" />
               <div className="text-sm text-blue-800">
                 <p className="font-medium mb-1">更新说明</p>
-                <p className="mb-2">RiddleNote 支持版本检查和更新提醒。更新清单托管在 GitHub，不会自动安装扩展，需要用户手动下载安装。</p>
+                <p className="mb-2">Riddle Notes 支持版本检查和更新提醒。更新清单托管在 GitHub，不会自动安装扩展，需要用户手动下载安装。</p>
                 <p>扩展的收藏、搜索和数据管理功能在更新检查失败时仍可正常使用。</p>
               </div>
             </div>
@@ -405,72 +393,6 @@ const Settings: React.FC = () => {
                 </div>
               </div>
             )}
-          </div>
-        </section>
-
-        {/* AI API Configuration */}
-        <section className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Shield className="w-5 h-5 text-purple-600" />
-            AI 配置
-          </h3>
-
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-purple-600 mt-0.5" />
-              <div className="text-sm text-purple-800">
-                <p className="font-medium mb-1">隐私说明</p>
-                <p>AI 改进功能会将所选内容发送到配置的模型服务商。API Key 仅保存在本地，不会上传到任何服务器。</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                API Base URL
-              </label>
-              <input
-                type="text"
-                value={apiConfig.baseUrl}
-                onChange={(e) => setApiConfig({ ...apiConfig, baseUrl: e.target.value })}
-                placeholder="https://api.openai.com/v1"
-                className="input"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                支持 OpenAI-compatible API
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                API Key
-              </label>
-              <input
-                type="password"
-                value={apiConfig.apiKey}
-                onChange={(e) => setApiConfig({ ...apiConfig, apiKey: e.target.value })}
-                placeholder="sk-..."
-                className="input"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                模型
-              </label>
-              <select
-                value={apiConfig.model}
-                onChange={(e) => setApiConfig({ ...apiConfig, model: e.target.value })}
-                className="input"
-              >
-                <option value="gpt-4">GPT-4</option>
-                <option value="gpt-4-turbo-preview">GPT-4 Turbo</option>
-                <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-                <option value="claude-3-opus">Claude 3 Opus</option>
-                <option value="claude-3-sonnet">Claude 3 Sonnet</option>
-              </select>
-            </div>
           </div>
         </section>
 

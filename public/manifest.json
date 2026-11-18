@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Riddle Notes",
   "version": "1.0.0",
-  "description": "跨平台 AI Prompt 收藏与管理工具",
+  "description": "一键收藏 AI 对话，收进你的私人手札，随时搜索和整理。",
   "permissions": [
     "storage",
     "activeTab",
@@ -44,7 +44,7 @@
       "48": "icons/icon-48.png",
       "128": "icons/icon-128.png"
     },
-    "default_title": "Riddle Note - Prompt 收藏与管理"
+    "default_title": "Riddle Notes"
   },
   "icons": {
     "16": "icons/icon-16.png",

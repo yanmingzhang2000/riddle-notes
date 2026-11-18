@@ -316,7 +316,7 @@ export class UpdateService {
       await chrome.runtime.sendMessage({
         type: 'UPDATE_AVAILABLE',
         payload: {
-          title: `RiddleNote v${result.latestVersion} 已发布`,
+          title: `Riddle Notes v${result.latestVersion} 已发布`,
           message: result.releaseNotes,
           version: result.latestVersion,
           isMandatory: result.isMandatory,

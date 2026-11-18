@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Star, FolderOpen, Tag, Clock, TrendingUp, Settings, Search, Plus } from 'lucide-react';
+import {
+  Star,
+  FolderOpen,
+  BookOpen,
+  Clock,
+  Bookmark,
+  Settings,
+  Search,
+  ChevronRight,
+  ChevronDown,
+} from 'lucide-react';
 import { db, Folder } from '@db/schema';
 
 interface SidebarProps {
@@ -12,11 +22,19 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [folders, setFolders] = useState<Folder[]>([]);
+  const [foldersOpen, setFoldersOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadFolders();
   }, []);
+
+  // 正在查看某个文件夹时，自动展开文件夹列表，避免当前选中项被折叠起来
+  useEffect(() => {
+    if (currentView.startsWith('folder-')) {
+      setFoldersOpen(true);
+    }
+  }, [currentView]);
 
   const loadFolders = async () => {
     const allFolders = await db.folders.orderBy('sortOrder').toArray();
@@ -24,10 +42,9 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
   };
 
   const navItems = [
-    { id: 'all', label: '全部 Prompt', icon: Star, path: '/prompts' },
-    { id: 'recent', label: '最近收藏', icon: Clock, path: '/prompts?filter=recent' },
-    { id: 'favorite', label: '我的收藏', icon: Star, path: '/prompts?filter=favorite' },
-    { id: 'improve', label: '待改进', icon: TrendingUp, path: '/prompts?filter=improve' },
+    { id: 'all', label: '全部笔记', icon: BookOpen, path: '/prompts' },
+    { id: 'recent', label: '最近收集', icon: Clock, path: '/prompts?filter=recent' },
+    { id: 'favorite', label: '重要', icon: Bookmark, path: '/prompts?filter=favorite' },
   ];
 
   const handleNavClick = (item: typeof navItems[0]) => {
@@ -53,7 +70,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
       <div className="p-4 border-b border-gray-200">
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <Star className="w-6 h-6 text-primary-600" />
-          Riddle Note
+          Riddle Notes
         </h1>
       </div>
 
@@ -63,7 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="搜索 Prompt..."
+            placeholder="搜索笔记..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
@@ -95,49 +112,44 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
           })}
         </div>
 
-        {/* Folders */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
-              我的文件夹
-            </h3>
-            <button className="p-1 hover:bg-gray-100 rounded">
-              <Plus className="w-3 h-3 text-gray-400" />
-            </button>
-          </div>
-          {folders.map(folder => (
+        {/* Folders（默认折叠） */}
+        {folders.length > 0 && (
+          <div>
             <button
-              key={folder.id}
-              onClick={() => handleFolderClick(folder.id!)}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                currentView === `folder-${folder.id}`
-                  ? 'bg-primary-50 text-primary-700 font-medium'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
+              type="button"
+              onClick={() => setFoldersOpen(open => !open)}
+              aria-expanded={foldersOpen}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left hover:bg-gray-100 transition-colors"
             >
-              <FolderOpen className="w-4 h-4" />
-              <span className="text-sm">{folder.name}</span>
+              <span className="flex items-center gap-2">
+                {foldersOpen ? (
+                  <ChevronDown className="w-3 h-3 text-gray-400" />
+                ) : (
+                  <ChevronRight className="w-3 h-3 text-gray-400" />
+                )}
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  文件夹
+                </span>
+              </span>
+              <span className="text-xs text-gray-400">{folders.length}</span>
             </button>
-          ))}
-        </div>
-
-        {/* Tags */}
-        <div>
-          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
-            标签
-          </h3>
-          <div className="flex flex-wrap gap-1">
-            <button className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
-              #高频使用
-            </button>
-            <button className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
-              #待改进
-            </button>
-            <button className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded hover:bg-gray-200">
-              #效果很好
-            </button>
+            {foldersOpen &&
+              folders.map(folder => (
+                <button
+                  key={folder.id}
+                  onClick={() => handleFolderClick(folder.id!)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                    currentView === `folder-${folder.id}`
+                      ? 'bg-primary-50 text-primary-700 font-medium'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                >
+                  <FolderOpen className="w-4 h-4" />
+                  <span className="text-sm">{folder.name}</span>
+                </button>
+              ))}
           </div>
-        </div>
+        )}
       </nav>
 
       {/* Footer */}

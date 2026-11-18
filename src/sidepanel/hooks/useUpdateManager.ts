@@ -28,7 +28,7 @@ export function useUpdateManager() {
       // 如果有强制更新
       if (result.isMandatory) {
         setMandatoryUpdateData({
-          title: '当前版本已不再支持，请更新 RiddleNote 后继续使用',
+          title: '当前版本已不再支持，请更新 Riddle Notes 后继续使用',
           message: `您的版本 ${result.currentVersion} 已低于最低支持版本 ${result.minSupportedVersion}，请立即更新到最新版本 ${result.latestVersion}。`,
           downloadUrl: result.downloadUrl,
           minSupportedVersion: result.minSupportedVersion,
@@ -40,7 +40,7 @@ export function useUpdateManager() {
       // 如果有普通更新
       else if (result.hasUpdate) {
         setUpdateBannerData({
-          title: `RiddleNote v${result.latestVersion} 已发布`,
+          title: `Riddle Notes v${result.latestVersion} 已发布`,
           message: result.releaseNotes.split('\n')[0] || '新版本已发布，请及时更新',
           version: result.latestVersion,
           isMandatory: false,

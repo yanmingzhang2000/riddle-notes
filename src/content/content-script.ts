@@ -57,7 +57,7 @@ function createStarIcon(): SVGSVGElement {
 function createStarButton(): HTMLButtonElement {
   const button = document.createElement('button');
   button.className = 'sidecar-star-btn';
-  button.title = '收藏此 Prompt';
+  button.title = '收藏这段对话';
   button.appendChild(createStarIcon());
   
   button.addEventListener('click', handleStarClick);
