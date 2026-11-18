@@ -1,4 +1,4 @@
-# Sidecar Website 部署指南
+# Riddle Notes Website 部署指南
 
 ## 🎯 已完成的工作
 
@@ -143,7 +143,7 @@ jobs:
 
 在 `vite.config.ts` 中已设置:
 ```typescript
-base: '/sidecar-mvp/'
+base: '/riddle-notes/'
 ```
 
 如果你的仓库名不同，请修改这个配置。
@@ -202,7 +202,7 @@ base: '/sidecar-mvp/'
 
 ## ✅ 验收标准检查
 
-- ✅ 用户在 5 秒内能理解 Sidecar 是什么
+- ✅ 用户在 5 秒内能理解 Riddle Notes 是什么
 - ✅ 第一屏有明确的下载入口
 - ✅ 页面是浅色米白风格
 - ✅ 页面高级、克制，不像模板

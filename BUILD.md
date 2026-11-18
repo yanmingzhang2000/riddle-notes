@@ -1,4 +1,4 @@
-# Sidecar MVP 构建指南
+# Riddle Notes 构建指南
 
 ## 前置要求
 
@@ -139,7 +139,7 @@ npm run test:ui
 
 #### 查看 Service Worker 日志
 1. 访问 `chrome://extensions/`
-2. 找到 Sidecar 扩展
+2. 找到 Riddle Notes 扩展
 3. 点击"Service Worker"链接
 4. 查看 Console 输出
 
@@ -202,7 +202,7 @@ npm run test:ui
 
 1. ✅ 在 ChatGPT 中测试星标收藏功能
 2. ✅ 查看 Side Panel 是否正常显示
-3. ✅ 测试 Prompt 保存和管理
+3. ✅ 测试笔记的保存和管理
 4. ✅ 验证数据持久化（关闭浏览器后数据不丢失）
 
 ## 生产部署

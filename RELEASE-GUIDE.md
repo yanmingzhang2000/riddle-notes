@@ -5,7 +5,7 @@
 ### 步骤 1: 提交 GitHub Actions 配置
 
 ```bash
-cd "c:\Users\yanmingzhang\Desktop\Code\产品学习\sidecar-mvp"
+cd riddle-notes
 git add .github/workflows/release.yml
 git commit -m "feat: add GitHub Actions auto-build"
 git push
@@ -13,13 +13,13 @@ git push
 
 ### 步骤 2: 在 GitHub 上创建 Release
 
-1. 访问 https://github.com/yanmingzhang2000/sidecar/releases
+1. 访问 https://github.com/yanmingzhang2000/riddle-notes/releases
 2. 点击 **"Create a new release"**
 3. 点击 **"Choose a tag"**
 4. 输入版本号，如：`v0.1.0`
 5. 点击 **"Create new tag"**
 6. 填写 Release 信息：
-   - **Title**: `Sidecar MVP v0.1.0 - First Release 🎉`
+   - **Title**: `Riddle Notes v0.1.0 - First Release 🎉`
    - **Description**: 从 RELEASE.md 复制内容
 7. 点击 **"Publish release"**
 
@@ -30,12 +30,12 @@ GitHub Actions 会自动：
 - ✅ 安装依赖
 - ✅ 构建项目
 - ✅ 运行测试
-- ✅ 打包为 `sidecar-extension.zip`
+- ✅ 打包为 `riddle-note-extension.zip`
 - ✅ 自动上传到 Release
 
 ### 步骤 4: 验证构建成功
 
-1. 在 Release 页面查看 `sidecar-extension.zip`
+1. 在 Release 页面查看 `riddle-note-extension.zip`
 2. 点击下载并测试
 
 ---
@@ -44,8 +44,8 @@ GitHub Actions 会自动：
 
 ### 对于用户
 
-1. 访问 https://github.com/yanmingzhang2000/sidecar/releases
-2. 下载最新的 `sidecar-extension.zip`
+1. 访问 https://github.com/yanmingzhang2000/riddle-notes/releases
+2. 下载最新的 `riddle-note-extension.zip`
 3. 解压到任意目录
 4. 在 Chrome 中加载解压后的文件夹
 

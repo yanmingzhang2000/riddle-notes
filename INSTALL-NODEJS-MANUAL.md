@@ -65,14 +65,14 @@ scoop install nodejs-lts
 安装 Node.js 后，打开新的 PowerShell 窗口，然后运行：
 
 ```bash
-cd "c:\Users\yanmingzhang\Desktop\Code\产品学习\sidecar-mvp"
+cd riddle-notes
 .\install.bat
 ```
 
 或手动执行：
 
 ```bash
-cd "c:\Users\yanmingzhang\Desktop\Code\产品学习\sidecar-mvp"
+cd riddle-notes
 npm install
 npm run build
 ```

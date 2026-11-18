@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢你考虑为 Sidecar MVP 做贡献！
+感谢你考虑为 Riddle Notes 做贡献！
 
 ## 🤔 如何贡献
 
@@ -8,7 +8,7 @@
 
 如果你发现了 bug 或有功能建议：
 
-1. 检查 [Issues](https://github.com/yourusername/sidecar-mvp/issues) 是否已有相同问题
+1. 检查 [Issues](https://github.com/yanmingzhang2000/riddle-notes/issues) 是否已有相同问题
 2. 如果没有，创建新 Issue：
    - 清晰描述问题
    - 提供复现步骤
@@ -19,8 +19,8 @@
 
 1. **Fork 仓库**
    ```bash
-   git clone https://github.com/yourusername/sidecar-mvp.git
-   cd sidecar-mvp
+   git clone https://github.com/yanmingzhang2000/riddle-notes.git
+   cd riddle-notes
    ```
 
 2. **创建分支**
@@ -89,15 +89,17 @@
 ## 🏗️ 项目结构
 
 ```
-sidecar-mvp/
+riddle-notes/
 ├── public/              # 扩展资源
 ├── src/
 │   ├── background/      # Service Worker
 │   ├── content/         # Content Scripts
 │   ├── sidepanel/       # UI
 │   ├── db/              # 数据库
-│   └── ai/              # AI 功能
-└── tests/               # 测试
+│   ├── options/         # 扩展选项页
+│   └── shared/          # 共享代码
+├── tests/               # 测试
+└── website/             # 产品落地页
 ```
 
 ## 🧪 测试指南
@@ -129,8 +131,8 @@ npm run test:ui
 
 ## ❓ 有问题？
 
-- 查看 [FAQ](https://github.com/yourusername/sidecar-mvp/wiki/FAQ)
-- 提问 [Discussions](https://github.com/yourusername/sidecar-mvp/discussions)
+- 查看 [FAQ](https://github.com/yanmingzhang2000/riddle-notes/wiki/FAQ)
+- 提问 [Discussions](https://github.com/yanmingzhang2000/riddle-notes/discussions)
 - 发送邮件到 your.email@example.com
 
 ## 📜 许可证

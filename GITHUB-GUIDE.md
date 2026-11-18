@@ -36,7 +36,7 @@ winget install OpenJS.NodeJS.LTS
 ## 🏗️ 步骤 2: 构建项目
 
 ```bash
-cd "c:\Users\yanmingzhang\Desktop\Code\产品学习\sidecar-mvp"
+cd riddle-notes
 
 # 安装依赖
 npm install
@@ -78,8 +78,8 @@ dist/
 1. 登录 https://github.com
 2. 点击右上角 `+` → `New repository`
 3. 填写信息：
-   - **Repository name**: `sidecar-mvp`
-   - **Description**: `一键收藏 Prompt 及 AI 输出，本地管理与迭代优化`
+   - **Repository name**: `riddle-notes`
+   - **Description**: `一个收纳值得留下的信息、灵感与 AI 对话的私人手札。`
    - **Public** 或 **Private**（建议 Public）
    - ❌ 不要勾选 "Add a README file"（我们已有）
    - ✅ 选择 MIT License（已有）
@@ -88,7 +88,7 @@ dist/
 ### 方式 B: 使用 GitHub CLI（如果已安装）
 
 ```bash
-gh repo create sidecar-mvp --public --description="一键收藏 Prompt 及 AI 输出"
+gh repo create riddle-notes --public --description="一个收纳值得留下的信息、灵感与 AI 对话的私人手札。"
 ```
 
 ---
@@ -100,7 +100,7 @@ gh repo create sidecar-mvp --public --description="一键收藏 Prompt 及 AI �
 git add .
 
 # 创建首次提交
-git commit -m "feat: initial release - Sidecar MVP v0.1.0
+git commit -m "feat: initial release - Riddle Notes v0.1.0
 
 - ChatGPT platform support
 - Side Panel UI with React
@@ -115,7 +115,7 @@ git commit -m "feat: initial release - Sidecar MVP v0.1.0
 git branch -M main
 
 # 添加远程仓库（替换为你的用户名）
-git remote add origin https://github.com/YOUR_USERNAME/sidecar-mvp.git
+git remote add origin https://github.com/YOUR_USERNAME/riddle-notes.git
 
 # 推送到 GitHub
 git push -u origin main
@@ -131,7 +131,7 @@ git push -u origin main
 2. 点击右侧 `Releases` → `Create a new release`
 3. 填写信息：
    - **Tag version**: `v0.1.0`
-   - **Release title**: `Sidecar MVP v0.1.0 - First Release 🎉`
+   - **Release title**: `Riddle Notes v0.1.0 - First Release 🎉`
    - **Description**: 从 RELEASE.md 复制内容
 4. 如果需要，可以上传构建好的 `dist` 目录的 ZIP 文件
 5. 点击 `Publish release`
@@ -146,7 +146,7 @@ git tag -a v0.1.0 -m "Release v0.1.0"
 git push origin v0.1.0
 
 # 使用 gh 创建 release
-gh release create v0.1.0 --title="Sidecar MVP v0.1.0" --notes-file=RELEASE.md
+gh release create v0.1.0 --title="Riddle Notes v0.1.0" --notes-file=RELEASE.md
 ```
 
 ---
@@ -161,7 +161,7 @@ gh release create v0.1.0 --title="Sidecar MVP v0.1.0" --notes-file=RELEASE.md
 在 README.md 顶部添加：
 
 ```markdown
-![Sidecar Logo](assets/logo.png)
+![Riddle Notes Logo](assets/logo.png)
 ![Side Panel Demo](assets/screenshot.png)
 ```
 
@@ -201,7 +201,8 @@ gh release create v0.2.0 ...
 - `chatgpt`
 - `claude`
 - `gemini`
-- `prompt-management`
+- `ai-conversations`
+- `notes`
 - `productivity`
 - `typescript`
 - `react`
@@ -229,10 +230,10 @@ gh release create v0.2.0 ...
 在 README.md 顶部添加徽章：
 
 ```markdown
-[![GitHub release](https://img.shields.io/github/v/release/YOUR_USERNAME/sidecar-mvp)](https://github.com/YOUR_USERNAME/sidecar-mvp/releases)
-[![License](https://img.shields.io/github/license/YOUR_USERNAME/sidecar-mvp)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/YOUR_USERNAME/sidecar-mvp)](https://github.com/YOUR_USERNAME/sidecar-mvp/stargazers)
-[![Issues](https://img.shields.io/github/issues/YOUR_USERNAME/sidecar-mvp)](https://github.com/YOUR_USERNAME/sidecar-mvp/issues)
+[![GitHub release](https://img.shields.io/github/v/release/YOUR_USERNAME/riddle-notes)](https://github.com/YOUR_USERNAME/riddle-notes/releases)
+[![License](https://img.shields.io/github/license/YOUR_USERNAME/riddle-notes)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/YOUR_USERNAME/riddle-notes)](https://github.com/YOUR_USERNAME/riddle-notes/stargazers)
+[![Issues](https://img.shields.io/github/issues/YOUR_USERNAME/riddle-notes)](https://github.com/YOUR_USERNAME/riddle-notes/issues)
 ```
 
 ---

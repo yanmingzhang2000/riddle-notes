@@ -45,8 +45,8 @@
 {
   "latestVersion": "1.1.0",
   "publishedAt": "2026-11-12T10:00:00+08:00",
-  "releaseNotes": "RiddleNote v1.1.0 现已发布！\n\n主要更新：\n- ✅ 新增多平台支持\n- ✅ 修复收藏失败问题\n- ✅ 增加数据导出功能",
-  "downloadUrl": "https://github.com/yanmingzhang2000/sidecar/releases/tag/v1.1.0",
+  "releaseNotes": "Riddle Notes v1.1.0 现已发布！\n\n主要更新：\n- ✅ 新增多平台支持\n- ✅ 修复收藏失败问题\n- ✅ 增加数据导出功能",
+  "downloadUrl": "https://github.com/yanmingzhang2000/riddle-notes/releases/tag/v1.1.0",
   "minSupportedVersion": "1.0.0",
   "isMandatory": false
 }
@@ -82,7 +82,7 @@ updatedAt
 
 **普通更新提醒:**
 ```
-RiddleNote v1.1.0 已发布
+Riddle Notes v1.1.0 已发布
 修复了收藏失败问题，并增加数据导出功能。
 
 [下载新版本] [稍后提醒]
@@ -90,7 +90,7 @@ RiddleNote v1.1.0 已发布
 
 **强制更新警告:**
 ```
-当前版本已不再支持，请更新 RiddleNote 后继续使用。
+当前版本已不再支持，请更新 Riddle Notes 后继续使用。
 您的版本 1.0.0 已低于最低支持版本 1.1.0。
 
 [下载新版本]

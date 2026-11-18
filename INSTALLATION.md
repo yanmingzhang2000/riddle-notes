@@ -1,4 +1,6 @@
-# 📦 Sidecar MVP 安装指南
+# 📦 Riddle Notes 安装指南
+
+Riddle Notes 是一个收纳值得留下的信息、灵感与 AI 对话的私人手札。目前支持在 ChatGPT Web 中一键收集对话。
 
 ## 🎯 快速安装（3种方式）
 
@@ -29,11 +31,11 @@ winget install OpenJS.NodeJS.LTS
 
 ```bash
 # 方式 A: 使用 Git
-git clone https://github.com/yanmingzhang2000/sidecar.git
-cd sidecar
+git clone https://github.com/yanmingzhang2000/riddle-notes.git
+cd riddle-notes
 
 # 方式 B: 直接下载 ZIP
-# 1. 访问 https://github.com/yanmingzhang2000/sidecar
+# 1. 访问 https://github.com/yanmingzhang2000/riddle-notes
 # 2. 点击绿色 "Code" 按钮
 # 3. 选择 "Download ZIP"
 # 4. 解压后进入目录
@@ -58,7 +60,7 @@ npm run build
 3. 右上角开启 **"开发者模式"**
 4. 点击 **"加载已解压的扩展程序"**
 5. 选择项目的 `dist` 目录
-6. 完成！Sidecar 图标会出现在工具栏
+6. 完成！Riddle Notes 图标会出现在工具栏
 
 ---
 
@@ -71,19 +73,19 @@ npm run build
 如果你已经安装了 Node.js：
 
 ```bash
-git clone https://github.com/yanmingzhang2000/sidecar.git
-cd sidecar
+git clone https://github.com/yanmingzhang2000/riddle-notes.git
+cd riddle-notes
 npm install
 npm run build
 
 # 打包 dist 目录为 ZIP
 # Windows: 右键 dist 文件夹 → 发送到 → 压缩(zipped)文件夹
-# Mac/Linux: zip -r sidecar-extension.zip dist/
+# Mac/Linux: zip -r riddle-notes-extension.zip dist/
 ```
 
 #### 2. 分享给他人
 
-将生成的 `sidecar-extension.zip` 发送给其他人：
+将生成的 `riddle-notes-extension.zip` 发送给其他人：
 
 - Email
 - 网盘（百度云、Google Drive）
@@ -91,7 +93,7 @@ npm run build
 
 #### 3. 接收者安装
 
-1. 解压 `sidecar-extension.zip`
+1. 解压 `riddle-notes-extension.zip`
 2. 在 Chrome 中加载解压后的文件夹
 
 ---
@@ -104,39 +106,33 @@ npm run build
 
 ## 🎮 使用方法
 
-### 1. 收藏 Prompt
+### 1. 收集 AI 对话
 
 1. 打开支持的 AI 平台：
-   - **ChatGPT**: https://chat.openai.com 或 https://chatgpt.com
-   - **Claude**: https://claude.ai
-   - **Gemini**: https://gemini.google.com
-   - **WorkBuddy**: https://workbuddy.ai
+   - **ChatGPT**（已支持）: https://chatgpt.com 或 https://chat.openai.com
+   - **Claude、Gemini、WorkBuddy**（适配中）: 适配器已接入，但尚未完成验证，星标按钮可能无法正常显示
+   - **DeepSeek**: 尚未启用
 
 2. 发送消息并等待 AI 回复
 
 3. 在 AI 回复旁边找到 **星标按钮 (☆)**
 
-4. 点击星标保存 Prompt 和回复
+4. 点击星标，保存提问、AI 回复和来源
 
-### 2. 查看和管理
+### 2. 查看笔记
 
-1. 点击浏览器工具栏的 **Sidecar 图标**
+1. 点击浏览器工具栏的 **Riddle Notes 图标**
 
-2. Side Panel 会打开，显示所有 Prompt
+2. Side Panel 会打开，显示你收集的内容
 
-3. 使用左侧导航：
-   - 全部 Prompt
-   - 最近收藏
-   - 我的收藏
-   - 文件夹分类
-   - 标签筛选
+3. 使用侧边栏的「全部笔记」「最近收集」「重要」和文件夹浏览笔记
+
+4. 在详情页点击书签图标，可以把笔记标记为重要，之后在「重要」中查看
 
 ### 3. 搜索和筛选
 
-- 在搜索框输入关键词
-- 点击文件夹筛选
-- 点击标签筛选
-- 按平台筛选
+- 在搜索框输入关键词（匹配标题和摘要，不包含 AI 回复的正文）
+- 展开侧边栏的「文件夹」，点击文件夹查看其中的笔记（目前只有默认的「未分类」）
 
 ### 4. 导入导出数据
 
@@ -151,18 +147,22 @@ npm run build
    - 选择之前导出的 JSON 文件
    - 确认导入
 
+**注意**: 导入会用文件内容覆盖现有数据。导入前请先导出一份当前数据作为备份。
+
 ---
 
 ## ❓ 常见问题
 
 ### Q1: 找不到星标按钮？
 
-**原因**: 可能是页面还没加载完或 DOM 结构变化
+**原因**: 可能是页面还没加载完、DOM 结构变化，或者当前网站还没有稳定支持
 
 **解决**:
 1. 刷新页面
 2. 打开浏览器控制台（F12）查看错误
 3. 检查 URL 是否正确（chat.openai.com 或 chatgpt.com）
+
+目前只有 ChatGPT Web 稳定支持。
 
 ### Q2: 构建失败？
 
@@ -191,11 +191,12 @@ npm install
 
 ### Q4: 数据会丢失吗？
 
-**不会**！
-- 所有数据保存在浏览器 IndexedDB
+**正常使用不会丢失。**
+- 数据保存在本机浏览器的 IndexedDB
 - 关闭浏览器不会丢失
 - 重启浏览器数据仍在
 - 清除浏览器数据会删除（记得导出备份）
+- 当前版本没有跨设备同步，换浏览器或换电脑时，需要导出后再导入
 
 ### Q5: 可以在 Edge 中使用吗？
 
@@ -232,7 +233,7 @@ npm run lint  # 检查代码风格
 
 ## 📞 需要帮助？
 
-- **GitHub Issues**: https://github.com/yanmingzhang2000/sidecar/issues
+- **GitHub Issues**: https://github.com/yanmingzhang2000/riddle-notes/issues
 - **文档**: README.md, BUILD.md
 - **Node.js 安装**: INSTALL-NODEJS.md
 
@@ -240,7 +241,7 @@ npm run lint  # 检查代码风格
 
 ## 🎊 完成！
 
-按照以上步骤，你就可以成功安装和使用 Sidecar MVP 了！
+按照以上步骤，你就可以成功安装和使用 Riddle Notes 了！
 
 **关键步骤**:
 1. ✅ 安装 Node.js

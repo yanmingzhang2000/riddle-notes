@@ -1,6 +1,6 @@
 # Riddle Notes Website
 
-Riddle Notes 的产品落地页。Riddle Notes 是一个面向 ChatGPT Web 的本地 Prompt 收藏工具。
+Riddle Notes 的产品落地页。Riddle Notes 是一个以 AI 对话自动收藏为核心的轻量级个人信息管理工具，目前支持 ChatGPT Web。
 
 ## 开发
 

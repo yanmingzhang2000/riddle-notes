@@ -1,8 +1,8 @@
-# 🎉 Sidecar MVP 已成功发布到 GitHub！
+# 🎉 Riddle Notes 已成功发布到 GitHub！
 
 ## ✅ 发布完成
 
-**仓库地址**: https://github.com/yanmingzhang2000/sidecar
+**仓库地址**: https://github.com/yanmingzhang2000/riddle-notes
 
 **首次提交**: 
 - Commit: `ddaa397`
@@ -50,43 +50,44 @@
 ## 🎯 下一步建议
 
 ### 1. 访问你的仓库
-👉 https://github.com/yanmingzhang2000/sidecar
+👉 https://github.com/yanmingzhang2000/riddle-notes
 
 ### 2. 完善 GitHub 页面
 
 #### 添加描述
 在仓库设置中添加：
-- **Description**: `一键收藏 Prompt 及 AI 输出，本地管理与迭代优化`
+- **Description**: `一个收纳值得留下的信息、灵感与 AI 对话的私人手札。`
 - **Website**: (如果有个人网站)
 - **Topics**: 
   - `chrome-extension`
   - `chatgpt`
-  - `prompt-management`
+  - `ai-conversations`
+  - `notes`
   - `typescript`
   - `react`
 
 #### 添加徽章
 在 README.md 顶部添加：
 ```markdown
-[![GitHub release](https://img.shields.io/github/v/release/yanmingzhang2000/sidecar)](https://github.com/yanmingzhang2000/sidecar/releases)
-[![License](https://img.shields.io/github/license/yanmingzhang2000/sidecar)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/yanmingzhang2000/sidecar)](https://github.com/yanmingzhang2000/sidecar/stargazers)
+[![GitHub release](https://img.shields.io/github/v/release/yanmingzhang2000/riddle-notes)](https://github.com/yanmingzhang2000/riddle-notes/releases)
+[![License](https://img.shields.io/github/license/yanmingzhang2000/riddle-notes)](LICENSE)
+[![Stars](https://img.shields.io/github/stars/yanmingzhang2000/riddle-notes)](https://github.com/yanmingzhang2000/riddle-notes/stargazers)
 ```
 
 ### 3. 创建第一个 Release
 
 #### 方式 A: 网页操作
-1. 访问 https://github.com/yanmingzhang2000/sidecar/releases
+1. 访问 https://github.com/yanmingzhang2000/riddle-notes/releases
 2. 点击 "Create a new release"
 3. 填写：
    - **Tag**: `v0.1.0`
-   - **Title**: `Sidecar MVP v0.1.0 - First Release 🎉`
+   - **Title**: `Riddle Notes v0.1.0 - First Release 🎉`
    - **Description**: 从 RELEASE.md 复制
 4. 发布
 
 #### 方式 B: 使用 Git Tag
 ```bash
-cd sidecar-mvp
+cd riddle-notes
 git tag -a v0.1.0 -m "Release v0.1.0"
 git push origin v0.1.0
 ```
@@ -127,10 +128,12 @@ git push origin v0.1.0
 - ✅ DOM 提取测试
 - ✅ 错误隔离机制
 
-### Phase 2B (计划中)
-- ⏳ AI 改进 Prompt
-- ⏳ OpenAI API 集成
-- ⏳ 改进建议展示
+### Phase 2B (已取消)
+- ❌ AI 改进 Prompt
+- ❌ OpenAI API 集成
+- ❌ 改进建议展示
+
+Prompt 迭代已不再是产品方向，详见 [PRODUCT-POSITIONING.md](PRODUCT-POSITIONING.md)。
 
 ---
 
@@ -155,7 +158,7 @@ git push origin v0.1.0
 
 ## 🎊 恭喜！
 
-你的 Sidecar MVP 项目已经：
+你的 Riddle Notes 项目已经：
 - ✅ 完整开发
 - ✅ 文档齐全
 - ✅ 开源发布
@@ -177,6 +180,6 @@ git push origin v0.1.0
 
 ---
 
-**项目地址**: https://github.com/yanmingzhang2000/sidecar
+**项目地址**: https://github.com/yanmingzhang2000/riddle-notes
 
 ⭐ 如果觉得有用，记得给自己点个 Star！
