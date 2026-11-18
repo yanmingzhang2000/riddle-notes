@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Star, Bookmark, Copy } from 'lucide-react';
+import { Star, Bookmark, Copy, Plus, FileText, MessageSquare } from 'lucide-react';
 import { db, Prompt } from '@db/schema';
 
 const PromptList: React.FC = () => {
@@ -24,6 +24,7 @@ const PromptList: React.FC = () => {
       const folderId = searchParams.get('folder');
       const filter = searchParams.get('filter');
       const platform = searchParams.get('platform');
+      const type = searchParams.get('type');
 
       // 应用搜索筛选
       if (searchQuery) {
@@ -63,10 +64,19 @@ const PromptList: React.FC = () => {
         allPrompts = allPrompts.filter(p => p.sourcePlatform === platform);
       }
 
+      // 应用类型筛选：手动笔记 vs AI 对话
+      if (type === 'manual') {
+        allPrompts = allPrompts.filter(p => p.type === 'manual');
+      } else if (type === 'ai') {
+        allPrompts = allPrompts.filter(p => p.type === 'ai');
+      }
+
       // 页面标题跟随当前筛选
       let nextTitle = '全部笔记';
       if (searchQuery) {
         nextTitle = `搜索「${searchQuery}」`;
+      } else if (type === 'manual') {
+        nextTitle = '手动笔记';
       } else if (folderId) {
         const folder = await db.folders.get(parseInt(folderId));
         nextTitle = folder?.name ?? '文件夹';
@@ -79,7 +89,7 @@ const PromptList: React.FC = () => {
       }
 
       setTitle(nextTitle);
-      setIsFiltered(Boolean(searchQuery || folderId || filter || platform));
+      setIsFiltered(Boolean(searchQuery || folderId || filter || platform || type));
       setPrompts(allPrompts);
     } catch (error) {
       console.error('Failed to load prompts:', error);
@@ -146,7 +156,17 @@ const PromptList: React.FC = () => {
     <div className="h-full flex flex-col">
       {/* Header */}
       <header className="p-6 border-b border-gray-200 bg-white">
-        <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+          <button
+            onClick={() => navigate('/notes/new')}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            title="新建手动笔记"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="text-sm font-medium">新建笔记</span>
+          </button>
+        </div>
         <p className="text-sm text-gray-500 mt-1">{prompts.length} 条笔记</p>
       </header>
 
@@ -173,12 +193,19 @@ const PromptList: React.FC = () => {
                 className="bg-white border border-gray-200 rounded-lg p-4 cursor-pointer hover:shadow-md transition-shadow prompt-card"
               >
                 <div className="flex items-start justify-between mb-2">
-                  <h3 className="text-lg font-semibold text-gray-900 flex-1">
-                    {prompt.title}
-                  </h3>
+                  <div className="flex items-center gap-2 flex-1">
+                    {prompt.type === 'manual' ? (
+                      <FileText className="w-4 h-4 text-gray-400 flex-shrink-0" aria-label="手动笔记" />
+                    ) : (
+                      <MessageSquare className="w-4 h-4 text-gray-400 flex-shrink-0" aria-label="AI 对话" />
+                    )}
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {prompt.title}
+                    </h3>
+                  </div>
                   {prompt.isFavorite && (
                     <Bookmark
-                      className="w-4 h-4 text-yellow-500 fill-current"
+                      className="w-4 h-4 text-yellow-500 fill-current flex-shrink-0"
                       aria-label="重要"
                     />
                   )}
@@ -192,18 +219,22 @@ const PromptList: React.FC = () => {
 
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <div className="flex items-center gap-3">
-                    <span className="badge badge-blue">
-                      {getPlatformName(prompt.sourcePlatform)}
-                    </span>
+                    {prompt.type !== 'manual' && (
+                      <span className="badge badge-blue">
+                        {getPlatformName(prompt.sourcePlatform)}
+                      </span>
+                    )}
                     <span>{formatDate(prompt.updatedAt)}</span>
                   </div>
-                  <button
-                    onClick={(e) => handleCopyPrompt(e, prompt.id!)}
-                    className="p-1 hover:bg-gray-100 rounded"
-                    title="复制提问内容"
-                  >
-                    <Copy className="w-3 h-3" />
-                  </button>
+                  {prompt.type !== 'manual' && (
+                    <button
+                      onClick={(e) => handleCopyPrompt(e, prompt.id!)}
+                      className="p-1 hover:bg-gray-100 rounded"
+                      title="复制提问内容"
+                    >
+                      <Copy className="w-3 h-3" />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

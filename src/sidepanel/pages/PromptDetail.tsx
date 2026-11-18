@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Bookmark, Copy, Trash2 } from 'lucide-react';
+import { ArrowLeft, Bookmark, Copy, Trash2, Edit } from 'lucide-react';
 import { db, Prompt, PromptVersion, Run } from '@db/schema';
+import ReactMarkdown from 'react-markdown';
 
 const PromptDetail: React.FC = () => {
   const { id } = useParams();
@@ -98,9 +99,12 @@ const PromptDetail: React.FC = () => {
       claude: 'Claude',
       gemini: 'Gemini',
       workbuddy: 'WorkBuddy',
+      manual: '手动笔记',
     };
     return platformNames[platformId] || platformId;
   };
+
+  const isManualNote = prompt?.type === 'manual';
 
   if (loading) {
     return (
@@ -132,6 +136,15 @@ const PromptDetail: React.FC = () => {
           <h2 className="text-xl font-bold text-gray-900 flex-1">
             {prompt.title}
           </h2>
+          {isManualNote && (
+            <button
+              onClick={() => navigate(`/notes/${id}/edit`)}
+              className="p-2 hover:bg-gray-100 rounded-lg"
+              title="编辑笔记"
+            >
+              <Edit className="w-5 h-5 text-gray-600" />
+            </button>
+          )}
           <button
             onClick={handleToggleFavorite}
             className="p-2 hover:bg-gray-100 rounded-lg"
@@ -155,49 +168,58 @@ const PromptDetail: React.FC = () => {
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-6">
-        {/* 提问 */}
-        {currentVersion && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">提问</h3>
-              <button
-                onClick={handleCopyPrompt}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                <Copy className="w-4 h-4" />
-                复制
-              </button>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono">
-                {currentVersion.content}
-              </pre>
-            </div>
+        {isManualNote ? (
+          /* 手动笔记：显示 Markdown 渲染的正文 */
+          <div className="prose prose-sm max-w-none">
+            <ReactMarkdown>{prompt.content || ''}</ReactMarkdown>
           </div>
-        )}
-
-        {/* AI 回复 */}
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">AI 回复</h3>
-
-          {runs.length === 0 ? (
-            <p className="text-sm text-gray-500">暂无 AI 回复</p>
-          ) : (
-            <div className="space-y-3">
-              {runs.map(run => (
-                <div key={run.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                  {runs.length > 1 && (
-                    <p className="text-xs text-gray-500 mb-2">{formatDate(run.createdAt)}</p>
-                  )}
-                  <div className="whitespace-pre-wrap break-words text-sm text-gray-700">
-                    {run.outputText}
-                  </div>
+        ) : (
+          <>
+            {/* 提问 */}
+            {currentVersion && (
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900">提问</h3>
+                  <button
+                    onClick={handleCopyPrompt}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                  >
+                    <Copy className="w-4 h-4" />
+                    复制
+                  </button>
                 </div>
-              ))}
+
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
+                  <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono">
+                    {currentVersion.content}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* AI 回复 */}
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-3">AI 回复</h3>
+
+              {runs.length === 0 ? (
+                <p className="text-sm text-gray-500">暂无 AI 回复</p>
+              ) : (
+                <div className="space-y-3">
+                  {runs.map(run => (
+                    <div key={run.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                      {runs.length > 1 && (
+                        <p className="text-xs text-gray-500 mb-2">{formatDate(run.createdAt)}</p>
+                      )}
+                      <div className="whitespace-pre-wrap break-words text-sm text-gray-700">
+                        {run.outputText}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Footer Actions */}

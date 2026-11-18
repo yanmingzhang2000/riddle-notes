@@ -10,6 +10,7 @@ import {
   Search,
   ChevronRight,
   ChevronDown,
+  FileText,
 } from 'lucide-react';
 import { db, Folder } from '@db/schema';
 
@@ -43,6 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
 
   const navItems = [
     { id: 'all', label: '全部笔记', icon: BookOpen, path: '/prompts' },
+    { id: 'manual', label: '手动笔记', icon: FileText, path: '/prompts?type=manual' },
     { id: 'recent', label: '最近收集', icon: Clock, path: '/prompts?filter=recent' },
     { id: 'favorite', label: '重要', icon: Bookmark, path: '/prompts?filter=favorite' },
   ];
