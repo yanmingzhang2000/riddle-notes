@@ -82,6 +82,8 @@ async function savePrompt(data: {
 }) {
   // 1. 创建 Prompt 记录
   const promptId = await db.prompts.add({
+    uid: crypto.randomUUID(),
+    type: 'ai',
     title: generateTitle(data.promptText),
     description: generateDescription(data.promptText),
     sourcePlatform: data.sourcePlatform,

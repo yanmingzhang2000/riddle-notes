@@ -1,4 +1,4 @@
-/* global Blob, FileReader, atob, URL, setTimeout */
+/* global Blob, FileReader, atob, URL, setTimeout, crypto */
 /**
  * 数据备份与恢复
  *
@@ -6,8 +6,9 @@
  * 导入：先解析并校验文件，再用一个 IndexedDB 事务完成「清空 + 写入」。
  *       事务中任何一步失败都会整体回滚，现有数据保持原样。
  *
- * 文件格式（version 2.0.0）保留了旧格式的 version、exportedAt 和各表数组，
- * 因此旧版本的扩展也能导入新文件，新版本同样能导入旧文件（version 1.0.0）。
+ * 文件格式（version 2.1.0）保留了旧格式的 version、exportedAt 和各表数组，
+ * 因此旧版本的扩展也能导入新文件，新版本同样能导入旧文件（version 1.0.0、2.0.0）。
+ * 2.1.0 起笔记带有 uid、type，手动笔记还有 content。旧版本扩展导入后看不到手动笔记的正文。
  */
 import type {
   SidecarDB,
@@ -21,7 +22,7 @@ import type {
 } from '../db/schema';
 
 export const BACKUP_APP_ID = 'riddle-notes';
-export const BACKUP_FORMAT_VERSION = '2.0.0';
+export const BACKUP_FORMAT_VERSION = '2.1.0';
 /** 能读取的最高格式主版本号。更高的版本来自更新的扩展，读取可能丢数据，所以拒绝 */
 const SUPPORTED_MAJOR_VERSION = 2;
 
@@ -183,9 +184,12 @@ export async function getBackupCounts(db: SidecarDB): Promise<BackupCounts> {
 
 /**
  * 安装扩展时系统自动写入的默认数据(见 schema.ts 的 initializeDefaultData):
- * 1 个「未分类」文件夹和 3 个预置标签。它们不是用户产生的内容,丢了也没有损失,
- * 所以判断「有没有值得备份的数据」时不能把它们算进去,否则刚安装、一条笔记都没有的用户
+ * 1 个「未分类」文件夹。它不是用户产生的内容,丢了也没有损失,
+ * 所以判断「有没有值得备份的数据」时不能把它算进去,否则刚安装、一条笔记都没有的用户
  * 第一次导入也会被当成「有旧数据」。
+ *
+ * tags 为 3 是因为早期版本会预置 3 个标签。现在新用户不再预置,但已经装过的老用户库里
+ * 仍有这 3 个,所以判断时继续容忍它们,不能改成 0。
  */
 export const DEFAULT_SEED_COUNTS = { folders: 1, tags: 3 } as const;
 
@@ -293,6 +297,49 @@ function reviveDate(row: Record<string, unknown>, field: string, where: string, 
   row[field] = date;
 }
 
+/**
+ * 校验并补全笔记的 uid、type。
+ * 旧格式（2.0.0 及以前）的文件里没有这两个字段，而那时只存在 AI 对话笔记，
+ * 所以缺少 type 就当作 'ai'，缺少 uid 就现场生成。
+ */
+function normalizePrompts(rows: Record<string, unknown>[]): void {
+  const label = TABLE_SPECS.prompts.label;
+  const seenUids = new Set<string>();
+
+  rows.forEach((row, index) => {
+    const where = `「${label}」第 ${index + 1} 条`;
+
+    if (row.type === undefined || row.type === null) {
+      row.type = 'ai';
+    } else if (row.type !== 'ai' && row.type !== 'manual') {
+      throw new BackupError(`${where}的类型不正确`);
+    }
+    if (row.type === 'manual' && typeof row.content !== 'string') {
+      throw new BackupError(`${where}是手动笔记，但缺少正文`);
+    }
+
+    if (row.uid !== undefined && row.uid !== null) {
+      if (typeof row.uid !== 'string' || row.uid === '') {
+        throw new BackupError(`${where}的 uid 格式不正确`);
+      }
+      if (seenUids.has(row.uid)) {
+        throw new BackupError(`「${label}」中有重复的 uid ${row.uid}`);
+      }
+      seenUids.add(row.uid);
+    }
+  });
+
+  // 文件里已有的 uid 全部登记之后，再给缺少 uid 的笔记生成，避免和后面才出现的 uid 重复
+  for (const row of rows) {
+    if (row.uid === undefined || row.uid === null) {
+      let uid = crypto.randomUUID();
+      while (seenUids.has(uid)) uid = crypto.randomUUID();
+      seenUids.add(uid);
+      row.uid = uid;
+    }
+  }
+}
+
 function readTable(raw: Record<string, unknown>, table: BackupTable): Record<string, unknown>[] {
   const spec = TABLE_SPECS[table];
   const value = raw[table];
@@ -373,6 +420,7 @@ export function parseBackup(text: string): ParsedBackup {
   for (const table of BACKUP_TABLES) {
     rows[table] = readTable(raw, table);
   }
+  normalizePrompts(rows.prompts);
 
   // 记录数与文件声明的不一致，说明文件被截断或手动改过
   if (isRecord(raw.counts)) {

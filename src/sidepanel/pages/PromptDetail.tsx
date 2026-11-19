@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Bookmark, Copy, Trash2 } from 'lucide-react';
+import { ArrowLeft, Bookmark, Copy, Trash2, Edit } from 'lucide-react';
 import { db, Prompt, PromptVersion, Run } from '@db/schema';
+import ReactMarkdown from 'react-markdown';
 
 const PromptDetail: React.FC = () => {
   const { id } = useParams();
@@ -98,14 +99,17 @@ const PromptDetail: React.FC = () => {
       claude: 'Claude',
       gemini: 'Gemini',
       workbuddy: 'WorkBuddy',
+      manual: '手动笔记',
     };
     return platformNames[platformId] || platformId;
   };
 
+  const isManualNote = prompt?.type === 'manual';
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500">加载中...</div>
+        <div className="meta">加载中...</div>
       </div>
     );
   }
@@ -113,7 +117,7 @@ const PromptDetail: React.FC = () => {
   if (!prompt) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="text-gray-500">笔记未找到</div>
+        <div className="meta">笔记未找到</div>
       </div>
     );
   }
@@ -121,90 +125,108 @@ const PromptDetail: React.FC = () => {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <header className="p-6 border-b border-gray-200 bg-white">
+      <header className="page-header">
         <div className="flex items-center gap-4 mb-4">
           <button
             onClick={() => navigate('/prompts')}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="btn-icon"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
-          <h2 className="text-xl font-bold text-gray-900 flex-1">
+          <h2 className="page-title text-lg flex-1">
             {prompt.title}
           </h2>
+          {isManualNote && (
+            <button
+              onClick={() => navigate(`/notes/${id}/edit`)}
+              className="btn-icon"
+              title="编辑笔记"
+            >
+              <Edit className="w-5 h-5" />
+            </button>
+          )}
           <button
             onClick={handleToggleFavorite}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="btn-icon"
             title={prompt.isFavorite ? '取消重要标记' : '标记为重要'}
             aria-label={prompt.isFavorite ? '取消重要标记' : '标记为重要'}
           >
             <Bookmark
               className={`w-5 h-5 ${
-                prompt.isFavorite ? 'text-yellow-500 fill-current' : 'text-gray-400'
+                prompt.isFavorite ? 'text-gold fill-gold' : 'text-soft'
               }`}
             />
           </button>
         </div>
 
-        <div className="flex items-center gap-4 text-sm text-gray-500">
-          <span className="badge badge-blue">{getPlatformName(prompt.sourcePlatform)}</span>
+        <div className="flex items-center gap-4 meta">
+          <span className="badge">{getPlatformName(prompt.sourcePlatform)}</span>
           <span>创建于 {formatDate(prompt.createdAt)}</span>
           <span>更新于 {formatDate(prompt.updatedAt)}</span>
         </div>
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
-        {/* 提问 */}
-        {currentVersion && (
-          <div className="mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-gray-900">提问</h3>
-              <button
-                onClick={handleCopyPrompt}
-                className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                <Copy className="w-4 h-4" />
-                复制
-              </button>
-            </div>
-
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <pre className="whitespace-pre-wrap text-sm text-gray-700 font-mono">
-                {currentVersion.content}
-              </pre>
-            </div>
+      <div className="flex-1 overflow-y-auto p-6 bg-parchment">
+        {isManualNote ? (
+          /* 手动笔记：显示 Markdown 渲染的正文 */
+          <div className="note-prose max-w-3xl mx-auto">
+            <ReactMarkdown>{prompt.content || ''}</ReactMarkdown>
           </div>
-        )}
-
-        {/* AI 回复 */}
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">AI 回复</h3>
-
-          {runs.length === 0 ? (
-            <p className="text-sm text-gray-500">暂无 AI 回复</p>
-          ) : (
-            <div className="space-y-3">
-              {runs.map(run => (
-                <div key={run.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                  {runs.length > 1 && (
-                    <p className="text-xs text-gray-500 mb-2">{formatDate(run.createdAt)}</p>
-                  )}
-                  <div className="whitespace-pre-wrap break-words text-sm text-gray-700">
-                    {run.outputText}
-                  </div>
+        ) : (
+          <>
+            {/* 提问 */}
+            {currentVersion && (
+              <div className="mb-6 max-w-3xl mx-auto">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-base font-semibold text-ink">提问</h3>
+                  <button
+                    onClick={handleCopyPrompt}
+                    className="btn-secondary text-xs px-2 py-1 min-h-0"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>复制</span>
+                  </button>
                 </div>
-              ))}
+
+                <div className="paper-panel">
+                  <pre className="whitespace-pre-wrap text-sm text-brown font-mono">
+                    {currentVersion.content}
+                  </pre>
+                </div>
+              </div>
+            )}
+
+            {/* AI 回复 */}
+            <div className="max-w-3xl mx-auto">
+              <h3 className="text-base font-semibold text-ink mb-3">AI 回复</h3>
+
+              {runs.length === 0 ? (
+                <p className="text-sm meta">暂无 AI 回复</p>
+              ) : (
+                <div className="space-y-3">
+                  {runs.map(run => (
+                    <div key={run.id} className="paper-panel paper-panel--seal">
+                      {runs.length > 1 && (
+                        <p className="text-xs meta mb-2">{formatDate(run.createdAt)}</p>
+                      )}
+                      <div className="whitespace-pre-wrap break-words text-sm text-brown">
+                        {run.outputText}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       {/* Footer Actions */}
-      <footer className="p-4 border-t border-gray-200 bg-white">
+      <footer className="p-4 border-t border-line bg-aged/20">
         <button
           onClick={handleDelete}
-          className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-seal hover:text-ink hover:bg-aged/50 rounded-lg transition-colors"
         >
           <Trash2 className="w-4 h-4" />
           删除

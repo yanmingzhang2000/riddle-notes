@@ -18,8 +18,11 @@ export interface Tag {
 
 export interface Prompt {
   id?: number;
+  uid?: string; // 全局唯一标识符，为将来同步铺路
+  type?: 'ai' | 'manual'; // 笔记类型：AI 对话或手动笔记
   title: string;
   description?: string;
+  content?: string; // 手动笔记的正文，AI 笔记没有这个字段
   folderId?: number;
   sourcePlatform: string;
   isFavorite: boolean;
@@ -120,6 +123,26 @@ export class SidecarDB extends Dexie {
       improvementRequests: '++id, promptId, sourceRunId, status, createdAt',
       appSettings: '++id, updateCheckEnabled, lastUpdateCheckAt, lastNotifiedVersion, lastDismissedVersion, updateManifestUrl',
     });
+    
+    // Version 3: Add uid and type to prompts for manual notes and future sync
+    this.version(3).stores({
+      folders: '++id, name, sortOrder, createdAt, updatedAt',
+      tags: '++id, name, createdAt',
+      prompts: '++id, &uid, type, title, folderId, sourcePlatform, isFavorite, createdAt, updatedAt, *tags',
+      promptVersions: '++id, promptId, versionNumber, createdAt',
+      runs: '++id, promptId, promptVersionId, sourcePlatform, rating, createdAt',
+      attachments: '++id, runId, createdAt',
+      improvementRequests: '++id, promptId, sourceRunId, status, createdAt',
+      appSettings: '++id, updateCheckEnabled, lastUpdateCheckAt, lastNotifiedVersion, lastDismissedVersion, updateManifestUrl',
+    }).upgrade(async (tx) => {
+      // 给所有已有笔记补上 uid 和 type。uid 用 crypto.randomUUID() 生成，
+      // 保证每条记录都有唯一的全局 ID。type 设为 'ai'，因为 v2 里只有 AI 对话笔记。
+      // 中途失败时整个事务回滚，数据库版本保持为 2，旧数据不受影响。
+      await tx.table('prompts').toCollection().modify((prompt: Prompt) => {
+        prompt.uid = crypto.randomUUID();
+        prompt.type = 'ai';
+      });
+    });
   }
 }
 
@@ -131,14 +154,12 @@ export async function initializeDefaultData() {
   const folderCount = await db.folders.count();
   
   if (folderCount === 0) {
-    // 只创建"未分类"：收藏时默认存入 folderId 1（见 service-worker.ts），其余文件夹由用户自己建
+    // 只创建"未分类"：收藏时默认存入 folderId 1（见 service-worker.ts），手动笔记也存这里
     await db.folders.add({ name: '未分类', sortOrder: 0, createdAt: new Date(), updatedAt: new Date() });
 
-    await db.tags.bulkAdd([
-      { name: '高频使用', createdAt: new Date() },
-      { name: '待改进', createdAt: new Date() },
-      { name: '效果很好', createdAt: new Date() },
-    ]);
+    // 从 v3 开始不再预置标签。已有用户的标签保留不动。
+    // 备份逻辑（backup.ts）里的 DEFAULT_SEED_COUNTS.tags 仍保持 3，
+    // 用于识别"已有 3 个预置标签的老用户"，导入时不多余下载备份。
   }
 
   // 初始化应用设置

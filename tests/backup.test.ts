@@ -24,10 +24,11 @@ function seedRows() {
       { id: 1, name: '高频使用', createdAt: t1 },
       { id: 2, name: '待改进', createdAt: t1 },
     ],
+    // 和升级到 v3 之后的真实数据一致:每条笔记都有 uid 和 type
     prompts: [
-      { id: 1, title: '第一条', description: '摘要一', folderId: 1, sourcePlatform: 'chatgpt', isFavorite: true, createdAt: t1, updatedAt: t1, tags: [1, 2] },
-      { id: 2, title: '第二条', description: '摘要二', folderId: 2, sourcePlatform: 'claude', isFavorite: false, createdAt: t2, updatedAt: t2 },
-      { id: 3, title: '第三条', description: '摘要三', folderId: 1, sourcePlatform: 'gemini', isFavorite: false, createdAt: t3, updatedAt: t3 },
+      { id: 1, uid: 'uid-0001', type: 'ai', title: '第一条', description: '摘要一', folderId: 1, sourcePlatform: 'chatgpt', isFavorite: true, createdAt: t1, updatedAt: t1, tags: [1, 2] },
+      { id: 2, uid: 'uid-0002', type: 'ai', title: '第二条', description: '摘要二', folderId: 2, sourcePlatform: 'claude', isFavorite: false, createdAt: t2, updatedAt: t2 },
+      { id: 3, uid: 'uid-0003', type: 'ai', title: '第三条', description: '摘要三', folderId: 1, sourcePlatform: 'gemini', isFavorite: false, createdAt: t3, updatedAt: t3 },
     ],
     promptVersions: [
       { id: 1, promptId: 1, versionNumber: 1, content: '提问一', changeNote: '初始版本', createdAt: t1 },
@@ -305,8 +306,13 @@ describe('是否有值得备份的用户数据(hasAnyData)', () => {
     expect(B.hasAnyData(counts())).toBe(false);
   });
 
-  it('刚安装扩展时的默认状态(1 个文件夹 + 3 个预置标签,没有笔记):没有', () => {
+  it('刚安装扩展时的默认状态(1 个文件夹,没有笔记):没有', () => {
     // 这是真实 Chrome 里验证出来的:全新安装的库并不是空的,但里面没有任何用户内容
+    expect(B.hasAnyData(counts({ folders: 1 }))).toBe(false);
+  });
+
+  it('早期版本装的老用户(1 个文件夹 + 3 个预置标签,没有笔记):也没有', () => {
+    // 早期版本会预置 3 个标签。现在新用户不再预置,但老用户的库里还有,不能把它们当成用户数据
     expect(B.hasAnyData(counts({ folders: 1, tags: 3 }))).toBe(false);
   });
 
@@ -325,16 +331,25 @@ describe('是否有值得备份的用户数据(hasAnyData)', () => {
     expect(B.hasAnyData(counts({ folders: 1, tags: 4 }))).toBe(true);
   });
 
-  it('默认值与 schema.ts 实际写入的预置数据一致', async () => {
-    // 如果有人改了 initializeDefaultData 里预置的文件夹或标签数量,这里会失败,
-    // 提醒同步修改 DEFAULT_SEED_COUNTS,否则刚安装的用户又会被误判成「有旧数据」
+  it('新用户:只预置「未分类」文件夹,不预置标签', async () => {
     const { initializeDefaultData } = await import('../src/db/schema');
     await initializeDefaultData();
     const seeded = await B.getBackupCounts(db);
     expect(seeded.folders).toBe(B.DEFAULT_SEED_COUNTS.folders);
-    expect(seeded.tags).toBe(B.DEFAULT_SEED_COUNTS.tags);
+    expect(seeded.tags).toBe(0);
     expect(seeded.prompts).toBe(0);
     expect(B.hasAnyData(seeded)).toBe(false);
+  });
+
+  it('预置数量的容忍值不低于实际预置的数量', async () => {
+    // 如果有人让 initializeDefaultData 预置得比 DEFAULT_SEED_COUNTS 更多,
+    // 刚安装的用户会被误判成「有旧数据」。tags 的容忍值保持 3 是为了老用户,不能随意改小
+    const { initializeDefaultData } = await import('../src/db/schema');
+    await initializeDefaultData();
+    const seeded = await B.getBackupCounts(db);
+    expect(seeded.folders).toBeLessThanOrEqual(B.DEFAULT_SEED_COUNTS.folders);
+    expect(seeded.tags).toBeLessThanOrEqual(B.DEFAULT_SEED_COUNTS.tags);
+    expect(B.DEFAULT_SEED_COUNTS.tags).toBe(3);
   });
 });
 

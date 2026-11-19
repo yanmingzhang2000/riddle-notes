@@ -10,6 +10,7 @@ import {
   Search,
   ChevronRight,
   ChevronDown,
+  FileText,
 } from 'lucide-react';
 import { db, Folder } from '@db/schema';
 
@@ -43,6 +44,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
 
   const navItems = [
     { id: 'all', label: '全部笔记', icon: BookOpen, path: '/prompts' },
+    { id: 'manual', label: '手动笔记', icon: FileText, path: '/prompts?type=manual' },
     { id: 'recent', label: '最近收集', icon: Clock, path: '/prompts?filter=recent' },
     { id: 'favorite', label: '重要', icon: Bookmark, path: '/prompts?filter=favorite' },
   ];
@@ -65,31 +67,31 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
   };
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
+    <aside className="w-64 bg-parchment border-r border-line flex flex-col">
       {/* Header */}
-      <div className="p-4 border-b border-gray-200">
-        <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Star className="w-6 h-6 text-primary-600" />
-          Riddle Notes
+      <div className="p-4 border-b border-line bg-aged/50">
+        <h1 className="text-xl font-bold text-ink flex items-center gap-2">
+          <Star className="w-6 h-6 text-gold" />
+          <span className="font-display">Riddle Notes</span>
         </h1>
       </div>
 
       {/* Search */}
-      <form onSubmit={handleSearch} className="p-3 border-b border-gray-200">
+      <form onSubmit={handleSearch} className="p-3 border-b border-line bg-aged/20">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-soft" />
           <input
             type="text"
             placeholder="搜索笔记..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            className="input text-sm"
           />
         </div>
       </form>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-3">
+      <nav className="flex-1 overflow-y-auto p-3 bg-parchment">
         {/* Main Nav */}
         <div className="mb-6">
           {navItems.map(item => {
@@ -99,11 +101,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
               <button
                 key={item.id}
                 onClick={() => handleNavClick(item)}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                  isActive 
-                    ? 'bg-primary-50 text-primary-700 font-medium' 
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                className={`nav-item ${isActive ? 'nav-item-active' : ''}`}
               >
                 <Icon className="w-4 h-4" />
                 <span className="text-sm">{item.label}</span>
@@ -119,30 +117,26 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
               type="button"
               onClick={() => setFoldersOpen(open => !open)}
               aria-expanded={foldersOpen}
-              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left hover:bg-gray-100 transition-colors"
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-left hover:bg-aged/30 transition-colors"
             >
               <span className="flex items-center gap-2">
                 {foldersOpen ? (
-                  <ChevronDown className="w-3 h-3 text-gray-400" />
+                  <ChevronDown className="w-3 h-3 text-soft" />
                 ) : (
-                  <ChevronRight className="w-3 h-3 text-gray-400" />
+                  <ChevronRight className="w-3 h-3 text-soft" />
                 )}
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <span className="eyebrow">
                   文件夹
                 </span>
               </span>
-              <span className="text-xs text-gray-400">{folders.length}</span>
+              <span className="text-xs text-soft">{folders.length}</span>
             </button>
             {foldersOpen &&
               folders.map(folder => (
                 <button
                   key={folder.id}
                   onClick={() => handleFolderClick(folder.id!)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                    currentView === `folder-${folder.id}`
-                      ? 'bg-primary-50 text-primary-700 font-medium'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                  className={`nav-item ${currentView === `folder-${folder.id}` ? 'nav-item-active' : ''}`}
                 >
                   <FolderOpen className="w-4 h-4" />
                   <span className="text-sm">{folder.name}</span>
@@ -153,10 +147,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-gray-200">
+      <div className="p-3 border-t border-line bg-aged/20">
         <button
           onClick={() => navigate('/settings')}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+          className="nav-item"
         >
           <Settings className="w-4 h-4" />
           <span className="text-sm">设置</span>

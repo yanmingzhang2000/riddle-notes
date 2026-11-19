@@ -208,33 +208,33 @@ const Settings: React.FC = () => {
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <header className="p-6 border-b border-gray-200 bg-white">
+      <header className="page-header">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/prompts')}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="btn-icon"
           >
-            <ArrowLeft className="w-5 h-5 text-gray-600" />
+            <ArrowLeft className="w-5 h-5" />
           </button>
-          <h2 className="text-xl font-bold text-gray-900">设置</h2>
+          <h2 className="page-title text-lg">设置</h2>
         </div>
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-6 bg-parchment">
         {/* Update Management */}
         <section className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <Download className="w-5 h-5 text-blue-600" />
+          <h3 className="text-lg font-semibold text-ink mb-4 flex items-center gap-2">
+            <Download className="w-5 h-5 text-mapblue" />
             版本与更新
           </h3>
 
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+          <div className="paper-panel paper-panel--seal mb-4">
             <div className="flex items-start gap-3">
-              <Info className="w-5 h-5 text-blue-600 mt-0.5" />
-              <div className="text-sm text-blue-800">
+              <Info className="w-5 h-5 text-seal mt-0.5" />
+              <div className="text-sm text-brown">
                 <p className="font-medium mb-1">更新说明</p>
-                <p className="mb-2">Riddle Notes 支持版本检查和更新提醒。更新清单托管在 GitHub，不会自动安装扩展，需要用户手动下载安装。</p>
+                <p className="mb-2">Riddle Notes 支持版本检查和更新提醒。更新清单托管在 GitHub，不会自动安装扩展,需要用户手动下载安装。</p>
                 <p>扩展的收藏、搜索和数据管理功能在更新检查失败时仍可正常使用。</p>
               </div>
             </div>
@@ -242,10 +242,10 @@ const Settings: React.FC = () => {
 
           <div className="space-y-6">
             {/* 版本信息 */}
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <div className="paper-panel">
               <div className="flex items-center justify-between mb-3">
-                <h4 className="font-medium text-gray-900">当前版本信息</h4>
-                <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                <h4 className="font-medium text-ink">当前版本信息</h4>
+                <span className="badge badge-gold">
                   v{currentVersion}
                 </span>
               </div>
@@ -253,29 +253,29 @@ const Settings: React.FC = () => {
               {lastCheckResult && (
                 <div className="space-y-2 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="text-gray-600">最后检查时间</span>
-                    <span className="text-gray-900">
+                    <span className="text-soft">最后检查时间</span>
+                    <span className="text-brown">
                       {lastCheckResult.lastCheckAt.toLocaleString('zh-CN')}
                     </span>
                   </div>
                   
                   {lastCheckResult.hasUpdate && (
-                    <div className={`p-3 rounded ${lastCheckResult.isMandatory ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'}`}>
+                    <div className={`p-3 rounded ${lastCheckResult.isMandatory ? 'bg-seal/10 border border-seal/30' : 'bg-sage/10 border border-sage/30'}`}>
                       <div className="flex items-center gap-2 mb-2">
                         {lastCheckResult.isMandatory ? (
-                          <XCircle className="w-4 h-4 text-red-600" />
+                          <XCircle className="w-4 h-4 text-seal" />
                         ) : (
-                          <CheckCircle className="w-4 h-4 text-green-600" />
+                          <CheckCircle className="w-4 h-4 text-sage" />
                         )}
-                        <span className="font-medium">
+                        <span className="font-medium text-ink">
                           {lastCheckResult.isMandatory ? '需要强制更新' : '发现新版本'}
                         </span>
                       </div>
-                      <div className="text-xs space-y-1">
+                      <div className="text-xs space-y-1 text-brown">
                         <p>当前版本: v{lastCheckResult.currentVersion}</p>
                         <p>最新版本: v{lastCheckResult.latestVersion}</p>
                         {lastCheckResult.isMandatory && (
-                          <p className="text-red-600">
+                          <p className="text-seal">
                             最低支持版本: v{lastCheckResult.minSupportedVersion}
                           </p>
                         )}
@@ -290,7 +290,7 @@ const Settings: React.FC = () => {
             <div className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-sm font-medium text-gray-700">
+                  <label className="text-sm font-medium text-brown">
                     启用自动更新检查
                   </label>
                   <button
@@ -299,22 +299,22 @@ const Settings: React.FC = () => {
                       ...prev,
                       updateCheckEnabled: !prev.updateCheckEnabled,
                     }))}
-                    className={`relative inline-flex h-6 w-11 items-center rounded-full ${
-                      updateSettings.updateCheckEnabled ? 'bg-blue-600' : 'bg-gray-200'
+                    className={`switch ${
+                      updateSettings.updateCheckEnabled ? 'bg-sage' : 'bg-line'
                     }`}
                   >
-                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition ${
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-paper transition ${
                       updateSettings.updateCheckEnabled ? 'translate-x-6' : 'translate-x-1'
                     }`} />
                   </button>
                 </div>
-                <p className="text-xs text-gray-500">
+                <p className="text-xs meta">
                   启动时和每24小时自动检查更新
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-brown mb-1">
                   <div className="flex items-center gap-1">
                     <Globe className="w-4 h-4" />
                     更新清单 URL
@@ -330,7 +330,7 @@ const Settings: React.FC = () => {
                   placeholder="https://example.com/update-manifest.json"
                   className="input text-sm"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs meta mt-1">
                   必须使用 HTTPS 协议
                 </p>
               </div>
@@ -360,13 +360,13 @@ const Settings: React.FC = () => {
 
             {/* 错误信息 */}
             {lastCheckError && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="paper-panel paper-panel--seal">
                 <div className="flex items-start gap-2">
-                  <XCircle className="w-4 h-4 text-red-600 mt-0.5" />
+                  <XCircle className="w-4 h-4 text-seal mt-0.5" />
                   <div className="text-sm">
-                    <p className="font-medium text-red-800">检查更新失败</p>
-                    <p className="text-red-700">{lastCheckError.message}</p>
-                    <p className="text-xs text-red-600 mt-1">
+                    <p className="font-medium text-ink">检查更新失败</p>
+                    <p className="text-brown">{lastCheckError.message}</p>
+                    <p className="text-xs meta mt-1">
                       {lastCheckError.retryable ? '可重试' : '暂时无法重试'}
                     </p>
                   </div>
@@ -378,7 +378,7 @@ const Settings: React.FC = () => {
 
         {/* Data Management */}
         <section className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <h3 className="text-lg font-semibold text-ink mb-4">
             数据管理
           </h3>
 
@@ -396,14 +396,14 @@ const Settings: React.FC = () => {
               导入数据
             </button>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
+          <p className="text-xs meta mt-2">
             导入会覆盖现有数据。导入前会先自动下载一份现有数据的备份。
           </p>
         </section>
 
         {/* Onboarding */}
         <section className="mb-8">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          <h3 className="text-lg font-semibold text-ink mb-4">
             新手引导
           </h3>
 
@@ -413,13 +413,13 @@ const Settings: React.FC = () => {
           >
             重新查看引导
           </button>
-          <p className="text-xs text-gray-500 mt-1">
-            下次打开支持的 AI 网站时，再次显示首次使用引导
+          <p className="text-xs meta mt-1">
+            下次打开支持的 AI 网站时,再次显示首次使用引导
           </p>
         </section>
 
         {/* Save Button */}
-        <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-200">
+        <div className="sticky bottom-0 bg-parchment pt-4 border-t border-line">
           <button
             onClick={handleSave}
             disabled={saving}

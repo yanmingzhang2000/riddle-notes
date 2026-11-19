@@ -38,10 +38,11 @@ function seedRows() {
       { id: 2, name: '工作', sortOrder: 1, createdAt: t1, updatedAt: t2 },
     ],
     tags: [{ id: 1, name: '高频使用', createdAt: t1 }],
+    // 和升级到 v3 之后的真实数据一致:每条笔记都有 uid 和 type
     prompts: [
-      { id: 1, title: '第一条', description: '摘要一', folderId: 1, sourcePlatform: 'chatgpt', isFavorite: true, createdAt: t1, updatedAt: t1 },
-      { id: 2, title: '第二条', description: '摘要二', folderId: 2, sourcePlatform: 'claude', isFavorite: false, createdAt: t2, updatedAt: t2 },
-      { id: 3, title: '第三条', description: '摘要三', folderId: 1, sourcePlatform: 'gemini', isFavorite: false, createdAt: t2, updatedAt: t2 },
+      { id: 1, uid: 'uid-0001', type: 'ai', title: '第一条', description: '摘要一', folderId: 1, sourcePlatform: 'chatgpt', isFavorite: true, createdAt: t1, updatedAt: t1 },
+      { id: 2, uid: 'uid-0002', type: 'ai', title: '第二条', description: '摘要二', folderId: 2, sourcePlatform: 'claude', isFavorite: false, createdAt: t2, updatedAt: t2 },
+      { id: 3, uid: 'uid-0003', type: 'ai', title: '第三条', description: '摘要三', folderId: 1, sourcePlatform: 'gemini', isFavorite: false, createdAt: t2, updatedAt: t2 },
     ],
     promptVersions: [
       { id: 1, promptId: 1, versionNumber: 1, content: '提问一', createdAt: t1 },
@@ -288,10 +289,10 @@ describe('Settings 页面的导入导出流程', () => {
 
   // -------------------------------------------------------------------------
   describe('导入:没有旧数据时', () => {
-    it('刚安装扩展(只有系统预置的文件夹和标签,没有笔记):不生成备份,也不提覆盖', async () => {
-      // 真实 Chrome 里验证出的场景:全新安装的库有 1 个文件夹和 3 个预置标签,但没有任何笔记
+    it('刚安装扩展(只有系统预置的文件夹,没有笔记):不生成备份,也不提覆盖', async () => {
+      // 真实 Chrome 里验证出的场景:全新安装的库不是空的(有 1 个「未分类」文件夹),但没有任何笔记
       await initializeDefaultData();
-      expect(await B.getBackupCounts(db)).toMatchObject({ folders: 1, tags: 3, prompts: 0 });
+      expect(await B.getBackupCounts(db)).toMatchObject({ folders: 1, tags: 0, prompts: 0 });
       const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
 
       await pickFile(JSON.stringify(legacyFile()));
@@ -302,6 +303,24 @@ describe('Settings 页面的导入导出流程', () => {
       expect(downloads).toHaveLength(0);
       expect(alertSpy.mock.calls[0][0]).toBe('导入成功！\n- 笔记: 1\n- 文件夹: 1');
       expect((await snapshotDb()).prompts).toHaveLength(1);
+    });
+
+    it('早期版本装的老用户(有 3 个预置标签,没有笔记):同样不生成备份,也不提覆盖', async () => {
+      await initializeDefaultData();
+      await db.tags.bulkAdd([
+        { name: '高频使用', createdAt: new Date() },
+        { name: '待改进', createdAt: new Date() },
+        { name: '效果很好', createdAt: new Date() },
+      ]);
+      expect(await B.getBackupCounts(db)).toMatchObject({ folders: 1, tags: 3, prompts: 0 });
+      const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+      await pickFile(JSON.stringify(legacyFile()));
+
+      const shown = confirm.mock.calls[0][0] as string;
+      expect(shown).toContain('当前没有数据');
+      expect(shown).not.toContain('覆盖');
+      expect(downloads).toHaveLength(0);
     });
 
     it('首次导入:不生成备份,提示里也不提备份', async () => {

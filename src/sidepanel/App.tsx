@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import PromptList from './pages/PromptList';
 import PromptDetail from './pages/PromptDetail';
+import NoteEditor from './pages/NoteEditor';
 import Settings from './pages/Settings';
 import { UpdateBanner } from './components/UpdateBanner';
 import { useUpdateManager } from './hooks/useUpdateManager';
@@ -13,7 +14,7 @@ const App: React.FC = () => {
 
   return (
     <HashRouter>
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex h-screen bg-parchment">
         {/* Sidebar */}
         <Sidebar currentView={currentView} onViewChange={setCurrentView} />
         
@@ -36,6 +37,8 @@ const App: React.FC = () => {
               <Route path="/" element={<Navigate to="/prompts" replace />} />
               <Route path="/prompts" element={<PromptList />} />
               <Route path="/prompts/:id" element={<PromptDetail />} />
+              <Route path="/notes/new" element={<NoteEditor />} />
+              <Route path="/notes/:id/edit" element={<NoteEditor />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </div>
