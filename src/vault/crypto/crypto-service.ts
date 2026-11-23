@@ -90,6 +90,9 @@ export class CryptoService {
       case 'Argon2id':
         // 等 Task 1.0 spike 的结论再接入,联合类型已经为它留好了分支
         throw new UnsupportedKdfError();
+      default:
+        // 库里的 algorithm 不是已知值:数据损坏,不能让它落到 undefined 上
+        throw new CorruptError();
     }
   }
 

@@ -12,6 +12,7 @@ export type VaultErrorKind =
   | 'recovery-checksum'
   | 'conflict'
   | 'already-initialized'
+  | 'not-initialized'
   | 'not-found'
   | 'unsupported-kdf';
 
@@ -83,10 +84,20 @@ export class AlreadyInitializedError extends VaultError {
   }
 }
 
+/** 保险箱还没有创建:vaultKeys 里没有 singleton 记录 */
+export class NotInitializedError extends VaultError {
+  constructor() {
+    super('not-initialized', 'Vault is not initialized');
+    this.name = 'NotInitializedError';
+  }
+}
+
 export class NotFoundError extends VaultError {
   constructor() {
     super('not-found', 'Record not found');
-    this.name = 'NotFoundError';
+    // 不能叫 'NotFoundError':Dexie 会把 name 与 DOMException 同名的异常包装成 DexieError,
+    // 在事务里抛出时调用方的 instanceof 就失效了。tests 里有守卫测试防止其他错误类再撞名
+    this.name = 'VaultRecordNotFoundError';
   }
 }
 

@@ -1,6 +1,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { useSyncExternalStore } from 'react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { asBufferSource } from '../../src/vault/crypto/bytes';
 import { CryptoService } from '../../src/vault/crypto/crypto-service';
 import { VaultLockedError } from '../../src/vault/crypto/errors';
 import {
@@ -99,7 +100,7 @@ describe('打开与锁定', () => {
     const session = makeSession();
     const extractable = await crypto.subtle.importKey(
       'raw',
-      svc.generateVaultKeyBytes(),
+      asBufferSource(svc.generateVaultKeyBytes()),
       { name: 'AES-GCM', length: 256 },
       true,
       ['encrypt', 'decrypt']

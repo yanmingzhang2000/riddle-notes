@@ -103,6 +103,42 @@ export interface VaultSecretPlain {
   notes?: string;
 }
 
+/** 创建与更新记录的输入。title 与 tags 进 summary 段,其余进 secret 段 */
+export interface VaultRecordInput {
+  type: VaultRecordType;
+  title: string;
+  secret: string;
+  username?: string;
+  url?: string;
+  notes?: string;
+  tags?: string[];
+}
+
+/** 列表项,只解密了 summary。unreadable 表示这一条解不开,其他条目不受影响 */
+export interface VaultSummary {
+  id: string;
+  type: VaultRecordType;
+  title: string;
+  tags?: string[];
+  createdAt: number;
+  updatedAt: number;
+  unreadable?: true;
+}
+
+/** 详情,summary 与 secret 两段都已解密 */
+export interface VaultSecret {
+  id: string;
+  type: VaultRecordType;
+  title: string;
+  tags?: string[];
+  secret: string;
+  username?: string;
+  url?: string;
+  notes?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type RecordSegment = 'summary' | 'secret';
 
 /** 绑定进 AAD 的记录上下文,见 §3.2 */

@@ -447,7 +447,7 @@ describe('错误不携带敏感内容', () => {
     const seg = await svc.encryptSegment({ secret }, key, ctx);
     const wrongKey = await svc.importSessionKey(svc.generateVaultKeyBytes());
 
-    const error = await svc.decryptSegment(seg, wrongKey, ctx).catch(e => e);
+    const error = (await svc.decryptSegment(seg, wrongKey, ctx).catch(e => e)) as AuthError;
     expect(error).toBeInstanceOf(AuthError);
     expect(JSON.stringify({ name: error.name, message: error.message, kind: error.kind })).not.toContain(
       secret

@@ -9,6 +9,13 @@ export function asBufferSource(bytes: Uint8Array): BufferSource {
   return bytes as BufferSource;
 }
 
+/** keyId 之类的公开值比较,不涉及秘密,不需要常量时间 */
+export function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 /** 清零。Uint8Array 只清它自己的视图范围,ArrayBuffer 整个清 */
 export function wipe(buffer: ArrayBuffer | Uint8Array): void {
   if (ArrayBuffer.isView(buffer)) {

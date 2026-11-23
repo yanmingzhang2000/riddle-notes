@@ -1,10 +1,173 @@
 import { RiddleVaultDB } from '../../src/db/vault-schema';
-import type { VaultKeys, VaultRecord } from '../../src/vault/types';
+import { CryptoService } from '../../src/vault/crypto/crypto-service';
+import { VaultService, type KdfPolicy } from '../../src/vault/services/vault-service';
+import { VaultSession } from '../../src/vault/services/vault-session';
+import type { KdfParams, VaultKeys, VaultRecord } from '../../src/vault/types';
 
 /** 每个测试用一个全新的库名,互不影响。fake-indexeddb 在内存里,不会碰真实数据 */
 let counter = 0;
-export function createTestVaultDb(): RiddleVaultDB {
-  return new RiddleVaultDB(`RiddleVaultDB-test-${Date.now()}-${counter++}`);
+export function createTestVaultDb(name?: string): RiddleVaultDB {
+  return new RiddleVaultDB(name ?? `RiddleVaultDB-test-${Date.now()}-${counter++}`);
+}
+
+/** 测试里用很小的迭代次数加快速度;生产参数另有专门的用例 */
+export function fastKdfPolicy(iterations = 1000): KdfPolicy {
+  return {
+    create: (): KdfParams => ({
+      algorithm: 'PBKDF2-SHA256',
+      iterations,
+      salt: crypto.getRandomValues(new Uint8Array(32)),
+    }),
+    needsUpgrade: kdf => kdf.algorithm === 'PBKDF2-SHA256' && kdf.iterations < iterations,
+  };
+}
+
+export interface TestVault {
+  name: string;
+  db: RiddleVaultDB;
+  session: VaultSession;
+  crypto: CryptoService;
+  service: VaultService;
+  channelName: string;
+}
+
+const created: TestVault[] = [];
+
+export interface TestVaultOptions {
+  /** 共用同一个库和广播频道,模拟打开了两个 Side Panel */
+  peerOf?: TestVault;
+  kdfPolicy?: KdfPolicy;
+  now?: () => number;
+  newId?: () => string;
+}
+
+export function createTestVault(options: TestVaultOptions = {}): TestVault {
+  const id = counter++;
+  const name = options.peerOf?.name ?? `RiddleVaultDB-test-${Date.now()}-${id}`;
+  const channelName = options.peerOf?.channelName ?? `test-vault-channel-${Date.now()}-${id}`;
+  const db = new RiddleVaultDB(name);
+  const session = new VaultSession({ channelName });
+  const cryptoService = new CryptoService();
+  const service = new VaultService({
+    db,
+    session,
+    crypto: cryptoService,
+    kdfPolicy: options.kdfPolicy ?? fastKdfPolicy(),
+    now: options.now,
+    newId: options.newId,
+  });
+  const vault = { name, db, session, crypto: cryptoService, service, channelName };
+  created.push(vault);
+  return vault;
+}
+
+/** afterEach 里调用:释放 BroadcastChannel 和数据库连接 */
+export async function disposeTestVaults(): Promise<void> {
+  for (const vault of created.splice(0)) {
+    vault.session.dispose();
+    vault.db.close();
+  }
+}
+
+/** 让 n 个调用者都到达之后才一起放行,用来把并发操作卡在同一个位置 */
+export function createBarrier(parties: number) {
+  let arrived = 0;
+  let release!: () => void;
+  const open = new Promise<void>(resolve => (release = resolve));
+  return {
+    wait: async () => {
+      if (++arrived >= parties) release();
+      await open;
+    },
+  };
+}
+
+/** 手动开关的门:先 hold,需要时 release */
+export function createGate() {
+  let release!: () => void;
+  const open = new Promise<void>(resolve => (release = resolve));
+  return { wait: () => open, release };
+}
+
+export const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
+export const PASSWORD = 'correct horse battery staple';
+
+/** 建一个已初始化、会话打开的保险箱,返回初始化时展示的 Recovery Key */
+export async function createInitializedVault(
+  options: TestVaultOptions = {}
+): Promise<TestVault & { recoveryKey: string }> {
+  const vault = createTestVault(options);
+  let recoveryKey = '';
+  await vault.service.initialize(PASSWORD, async formatted => {
+    recoveryKey = formatted;
+  });
+  return Object.assign(vault, { recoveryKey });
+}
+
+/** 四张表的全部内容,用来断言"失败后数据库没有任何变化" */
+export async function snapshotVault(db: RiddleVaultDB) {
+  return {
+    keys: await db.vaultKeys.toArray(),
+    settings: await db.vaultSettings.toArray(),
+    records: await db.vaultRecords.toArray(),
+    snapshot: await db.vaultSnapshot.toArray(),
+  };
+}
+
+/** 直接改库里的 vaultKeys,模拟损坏、篡改或被另一个实例修改 */
+export async function tamperKeys(db: RiddleVaultDB, change: (keys: VaultKeys) => void) {
+  const keys = (await db.vaultKeys.get('singleton'))!;
+  change(keys);
+  await db.vaultKeys.put(keys);
+}
+
+/**
+ * 记录服务拿到的原始密钥字节(Vault Key、Recovery Key、unwrap 的结果),
+ * 测试结束时断言它们都已经清零。
+ */
+export function trackKeyMaterial(service: CryptoService): Uint8Array[] {
+  const tracked: Uint8Array[] = [];
+  const generate = service.generateVaultKeyBytes.bind(service);
+  const generateRecovery = service.generateRecoveryKey.bind(service);
+  const unwrap = service.unwrap.bind(service);
+  const parse = service.parseRecoveryKey.bind(service);
+
+  service.generateVaultKeyBytes = () => {
+    const bytes = generate();
+    tracked.push(bytes);
+    return bytes;
+  };
+  service.generateRecoveryKey = async () => {
+    const result = await generateRecovery();
+    tracked.push(result.bytes);
+    return result;
+  };
+  service.unwrap = async (...args) => {
+    const bytes = await unwrap(...args);
+    tracked.push(bytes);
+    return bytes;
+  };
+  service.parseRecoveryKey = async input => {
+    const bytes = await parse(input);
+    tracked.push(bytes);
+    return bytes;
+  };
+  return tracked;
+}
+
+export const isZeroed = (bytes: Uint8Array) => bytes.every(b => b === 0);
+
+export const toHex = (b: Uint8Array) => Buffer.from(b).toString('hex');
+
+/** 在字节数组里找子序列,扫描密文有没有漏出明文 */
+export function containsSubarray(haystack: Uint8Array, needle: Uint8Array): boolean {
+  if (needle.length === 0) return true;
+  outer: for (let i = 0; i + needle.length <= haystack.length; i++) {
+    for (let j = 0; j < needle.length; j++) if (haystack[i + j] !== needle[j]) continue outer;
+    return true;
+  }
+  return false;
 }
 
 const bytes = (n: number, fill: number) => new Uint8Array(n).fill(fill);
