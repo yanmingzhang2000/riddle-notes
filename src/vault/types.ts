@@ -139,6 +139,22 @@ export interface VaultSecret {
   updatedAt: number;
 }
 
+/** 主密码不合格的原因类别。只有类别,不带密码内容,也不带 zxcvbn 的反馈文案 */
+export type PasswordIssue = 'too-short' | 'too-weak';
+
+/**
+ * 对一个主密码的评估结果。UI 的强度指示器和服务层的强制校验用的是同一份,
+ * 所以"指示器显示合格"与"服务层放行"不会不一致。
+ */
+export interface PasswordEvaluation {
+  /** zxcvbn 的 0–4 分。长度不足时也会给出,方便 UI 显示 */
+  score: 0 | 1 | 2 | 3 | 4;
+  /** NFKC 规范化之后的码点数,与 KDF 实际看到的密码一致 */
+  length: number;
+  ok: boolean;
+  issues: PasswordIssue[];
+}
+
 export type RecordSegment = 'summary' | 'secret';
 
 /** 绑定进 AAD 的记录上下文,见 §3.2 */

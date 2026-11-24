@@ -25,12 +25,14 @@ import {
   CorruptError,
   NotFoundError,
   NotInitializedError,
+  WeakPasswordError,
 } from '../crypto/errors';
 import {
   DEFAULT_AUTO_LOCK_TIMEOUT_MS,
   VAULT_FORMAT_VERSION,
   VAULT_RECORD_TYPES,
   type KdfParams,
+  type PasswordEvaluation,
   type RecordSegment,
   type SegmentContext,
   type VaultKeys,
@@ -43,6 +45,7 @@ import {
   type VaultSummaryPlain,
   type WrappedKey,
 } from '../types';
+import { DEFAULT_PASSWORD_POLICY, type PasswordPolicy } from './password-policy';
 import type { VaultSession } from './vault-session';
 
 /** 当前 KDF 策略。测试里注入很小的迭代次数,生产用默认值 */
@@ -61,6 +64,8 @@ export interface VaultServiceOptions {
   db?: RiddleVaultDB;
   crypto?: CryptoService;
   kdfPolicy?: KdfPolicy;
+  /** 主密码强度策略。默认是严格策略(长度 ≥ 12 且 zxcvbn ≥ 3),只有测试会注入宽松的 */
+  passwordPolicy?: PasswordPolicy;
   now?: () => number;
   newId?: () => string;
 }
@@ -72,6 +77,7 @@ export class VaultService {
   private readonly db: RiddleVaultDB;
   private readonly crypto: CryptoService;
   private readonly policy: KdfPolicy;
+  private readonly passwordPolicy: PasswordPolicy;
   private readonly now: () => number;
   private readonly newId: () => string;
   private readonly background = new Set<Promise<void>>();
@@ -81,6 +87,7 @@ export class VaultService {
     this.db = options.db ?? vaultDb;
     this.crypto = options.crypto ?? new CryptoService();
     this.policy = options.kdfPolicy ?? DEFAULT_KDF_POLICY;
+    this.passwordPolicy = options.passwordPolicy ?? DEFAULT_PASSWORD_POLICY;
     this.now = options.now ?? Date.now;
     this.newId = options.newId ?? (() => crypto.randomUUID());
   }
@@ -92,7 +99,7 @@ export class VaultService {
    * 回调抛错(取消)时什么都没写,没有半初始化状态。
    */
   async initialize(masterPassword: string, onRecoveryKey: RecoveryKeyCallback): Promise<void> {
-    requirePassword(masterPassword);
+    await this.requireStrongPassword(masterPassword);
     // 早检查只为省掉一次 KDF 和一次白白展示的 Recovery Key,真正的防线是下面事务里的检查
     if (await this.isInitialized()) throw new AlreadyInitializedError();
 
@@ -195,7 +202,8 @@ export class VaultService {
   // —— 改主密码 ————————————————————————————————————————
 
   async changeMasterPassword(current: string, next: string): Promise<void> {
-    requirePassword(next);
+    // 先检查新密码:弱密码在这里就被拒绝,不用先付一次验证旧密码的 KDF
+    await this.requireStrongPassword(next);
     const keys = await this.loadKeys();
     const { raw } = await this.unwrapWithMaster(keys, current);
     try {
@@ -216,7 +224,7 @@ export class VaultService {
     recoveryKeyInput: string,
     newMasterPassword: string
   ): Promise<{ accessRestored: true; rotationRequired: true }> {
-    requirePassword(newMasterPassword);
+    await this.requireStrongPassword(newMasterPassword);
     const keys = await this.loadKeys();
     const raw = await this.unwrapWithRecovery(keys, recoveryKeyInput);
     try {
@@ -387,9 +395,27 @@ export class VaultService {
     });
   }
 
+  /**
+   * 评估主密码,不抛 WeakPasswordError。UI 的强度指示器用它,
+   * 与 initialize / changeMasterPassword / recoverAccess 强制执行的是同一个策略。
+   */
+  evaluatePassword(password: string): Promise<PasswordEvaluation> {
+    return this.passwordPolicy.evaluate(password);
+  }
+
   /** 等后台任务(KDF 静默升级)结束。主要给测试用 */
   async idle(): Promise<void> {
     while (this.background.size > 0) await Promise.allSettled([...this.background]);
+  }
+
+  /**
+   * 设置主密码的三个入口共用。先拒绝空值(TypeError,是调用方的 bug),再过强度策略。
+   * 必须在任何 KDF 和数据库读取之前调用:弱密码被拒绝时不付出这些代价,也不碰库。
+   */
+  private async requireStrongPassword(password: string): Promise<void> {
+    requirePassword(password);
+    const evaluation = await this.passwordPolicy.evaluate(password);
+    if (!evaluation.ok) throw new WeakPasswordError(evaluation.issues);
   }
 
   // —— 内部:wrapper ————————————————————————————————————

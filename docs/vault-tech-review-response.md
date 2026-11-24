@@ -2,7 +2,7 @@
 
 主文档：`docs/vault-technical-architecture.md`（当前 v1.2）。`vault-technical-architecture-v1.0.md` 是最初版本的备份。
 
-**状态说明**：这里的"已改"只指**文档**已改。`src/` 下目前没有任何 Vault 代码，没有运行过任何 Vault 测试。
+**状态说明**：下面表格里的"v1.2 处理"描述的是**文档**当时怎么改的。写这份回应时 `src/` 下还没有 Vault 代码；后来 Task 1.1–1.3、2.1 已实现并有测试（`tests/vault/`，388 个用例），代码是否对应以主文档 §7 的勾选为准，不以这张表为准。
 
 ---
 
@@ -46,7 +46,7 @@
 ### 仍未验证
 
 - Side Panel 关闭是否真的销毁页面（Task 1.0 spike）。
-- Argon2id 在低端设备上的实际耗时与 CSP 的实际效果（Task 1.0 spike）。
+- Argon2id 在低端设备上的实际耗时，以及 WASM 在 Chrome 的 Side Panel / Worker 里能否在 `'wasm-unsafe-eval'` 下实例化（Task 1.0 spike）。本机 Node 基准和 manifest 构建试验已做，结果在主文档 §7 Task 1.0，但那不是低端设备，也不是 Chrome。
 - 解锁页不用 `<form>` 是否就不会触发浏览器"保存密码"提示。
 - 工时估算与评审一致（230–300h），未重新估算。
 

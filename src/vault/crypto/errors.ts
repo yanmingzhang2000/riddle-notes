@@ -4,6 +4,8 @@
  * 错误只带类别,不带任何字段内容、密钥或密文,message 是固定文案。
  * UI 按 kind 选择提示语,见技术方案 §5.3。
  */
+import type { PasswordIssue } from '../types';
+
 export type VaultErrorKind =
   | 'locked'
   | 'auth'
@@ -14,7 +16,8 @@ export type VaultErrorKind =
   | 'already-initialized'
   | 'not-initialized'
   | 'not-found'
-  | 'unsupported-kdf';
+  | 'unsupported-kdf'
+  | 'weak-password';
 
 export class VaultError extends Error {
   readonly kind: VaultErrorKind;
@@ -98,6 +101,20 @@ export class NotFoundError extends VaultError {
     // 不能叫 'NotFoundError':Dexie 会把 name 与 DOMException 同名的异常包装成 DexieError,
     // 在事务里抛出时调用方的 instanceof 就失效了。tests 里有守卫测试防止其他错误类再撞名
     this.name = 'VaultRecordNotFoundError';
+  }
+}
+
+/**
+ * 新主密码不符合强度策略。只带 issues(类别),不带密码内容,也不带 zxcvbn 的反馈文案,
+ * 这样即使错误被记进日志也不会泄露密码。UI 用 issues 选提示语。
+ */
+export class WeakPasswordError extends VaultError {
+  readonly issues: readonly PasswordIssue[];
+
+  constructor(issues: readonly PasswordIssue[]) {
+    super('weak-password', 'Master password does not meet the strength policy');
+    this.name = 'WeakPasswordError';
+    this.issues = [...issues];
   }
 }
 

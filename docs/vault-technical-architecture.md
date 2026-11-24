@@ -1,10 +1,10 @@
 # Riddle Notes Secure Vault — 技术架构方案
 
 **版本**: 1.2  
-**状态**: 评审中，Phase 1 可开始，须先完成 Task 1.0 两个 spike  
+**状态**: 评审中。Task 1.1–1.3 与 2.1（含主密码强度策略）已实现并有测试；Task 1.0 的两个 spike 只完成了 Node 侧，Side Panel 生命周期与低端机实测还没做；UI（Phase 3）、备份（Phase 4）未开始。进度以 §7 的勾选为准。  
 **范围**: 加密机制、密钥管理、数据存储、运行时安全、开发计划
 
-> 本文档是设计，`src/` 下目前没有任何 Vault 代码。文中代码块是接口与流程示意，不是可直接运行的实现。产品需求见对话中的 PRD，仓库里尚无 `vault-prd.md`。
+> 本文档是设计。实现在 `src/vault/` 与 `src/db/vault-schema.ts`，测试在 `tests/vault/`（9 个文件、388 个用例，全部通过）。文中代码块是接口与流程示意，不是可直接运行的实现；**与代码不一致时以代码和测试为准**。产品需求见对话中的 PRD，仓库里尚无 `vault-prd.md`。
 
 ## 目录
 
@@ -170,7 +170,8 @@ const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 
 type RecoveryKeyError = 'format' | 'checksum';
 
-function parseRecoveryKey(input: string): Uint8Array {
+// 校验和用 WebCrypto 的 SHA-256，所以是异步的
+async function parseRecoveryKey(input: string): Promise<Uint8Array> {
   const clean = input.normalize('NFKC').toUpperCase().replace(/[\s-]/g, '');
   if (!clean.startsWith('RNV1') || clean.length !== 4 + 52 + 4) throw new RecoveryKeyFormatError();
   const data = clean.slice(4, 56);
@@ -178,7 +179,7 @@ function parseRecoveryKey(input: string): Uint8Array {
   if (![...data, ...check].every(c => ALPHABET.includes(c))) throw new RecoveryKeyFormatError();
 
   const bytes = base32Decode(data);          // 必须校验末字符低 4 位为 0，否则 throw RecoveryKeyFormatError
-  if (check !== checksumOf(bytes)) throw new RecoveryKeyChecksumError();
+  if (check !== (await checksumOf(bytes))) throw new RecoveryKeyChecksumError();
   return bytes;                              // 32 字节
 }
 ```
@@ -505,8 +506,10 @@ export class CryptoService {
   decryptSegment<T>(seg: { iv: Uint8Array; data: Uint8Array }, key: CryptoKey, ctx: SegmentContext): Promise<T>;
 
   // —— Recovery Key，规范见 §2.2 ——
-  generateRecoveryKey(): { bytes: Uint8Array; formatted: string };
-  parseRecoveryKey(input: string): Uint8Array;                                 // 抛 RecoveryKeyFormatError | RecoveryKeyChecksumError
+  // 都是异步的：校验和用 WebCrypto 的 SHA-256
+  generateRecoveryKey(): Promise<{ bytes: Uint8Array; formatted: string }>;
+  formatRecoveryKey(bytes: Uint8Array): Promise<string>;
+  parseRecoveryKey(input: string): Promise<Uint8Array>;                        // 抛 RecoveryKeyFormatError | RecoveryKeyChecksumError
 }
 
 interface SegmentContext { recordId: string; type: VaultRecordType; formatVersion: 1; segment: 'summary' | 'secret'; }
@@ -525,6 +528,11 @@ interface SegmentContext { recordId: string; type: VaultRecordType; formatVersio
 
 ```typescript
 export class VaultService {
+  // —— 主密码强度 ——
+  // 设置主密码的三个入口（initialize / changeMasterPassword / recoverAccess）都先过强度策略，见 §5.4。
+  // UI 的强度指示器调用同一个策略，避免"指示器说合格、服务层却拒绝"。
+  evaluatePassword(password: string): Promise<PasswordEvaluation>;
+
   // —— 初始化 ——
   // 全程在内存里完成；onRecoveryKey 回调里用户必须回填校验通过才 resolve；之后才开事务。
   // 回调 reject（取消）时什么都没写，没有半初始化状态。
@@ -588,6 +596,40 @@ AES-GCM 在密钥错误和密文被篡改时抛的是同一种认证失败，无
 
 不再承诺"区分密码错误和数据损坏"。错误对象只带类别，不带任何字段内容；Vault 相关错误不得经 Service Worker 消息原样回传。
 
+以上三类是**解锁和验证**时的分类。设置新主密码时另有 `WeakPasswordError`（`kind: 'weak-password'`），见 §5.4。
+
+### 5.4 主密码强度策略
+
+**为什么在服务层**：备份文件的离线防护主要靠主密码强度（R7）。改主密码和 Recovery 恢复也会设置新的主密码，只在初始化页面检查等于留了两个后门，所以三个入口都在服务层强制，UI 只负责展示。
+
+**规则**：长度 ≥ 12，且 zxcvbn 得分 ≥ 3。两者同时满足才放行。
+
+- 长度按 **NFKC 规范化之后的码点数**计，与 KDF 实际看到的密码一致。全角字母、组合字符不能用来凑长度。
+- 只评估前 100 个码点，更长的部分不拿来加分；`length` 仍是全长。
+- 估算器用 `@zxcvbn-ts/core` + `@zxcvbn-ts/language-common`，**动态 `import()` 懒加载**：字典实测 471 KiB（minified）/ 233 KiB（gzip），不进主包，只在设置密码时才下载。
+- 估算器加载失败时**不放行**（直接抛错，不退回"只看长度"），并清掉缓存，下次调用可以重试。
+
+**接口**：策略是可注入的，默认是严格策略。
+
+```typescript
+interface PasswordPolicy { evaluate(password: string): Promise<PasswordEvaluation>; }
+interface PasswordEvaluation { score: 0|1|2|3|4; length: number; ok: boolean; issues: ('too-short' | 'too-weak')[]; }
+
+new VaultService({ session, passwordPolicy? });   // 不传 = DEFAULT_PASSWORD_POLICY（严格）
+```
+
+只有测试会注入宽松策略（`tests/helpers/vault.ts` 的 `permissivePasswordPolicy`），因为已有测试里有大量 `'wrong'`、`'x'` 这样的短密码，它们测的是别的行为。严格策略由 `tests/vault/password-policy.test.ts` 单独测，其中一条专门守"不传策略时默认是严格的"。
+
+**检查顺序**：先拒绝空串（`TypeError`，调用方的 bug），再过策略，都在任何 KDF 和数据库读取**之前**。弱密码被拒绝时不付出一次 600k 迭代的代价，也不碰库。因此 `changeMasterPassword` 里"弱的新密码"先于"旧密码是否正确"报错。
+
+**错误**：`WeakPasswordError` 只带 `issues`（类别），不带密码，也不带 zxcvbn 的反馈文案，这样即使被记进日志也不会泄露。UI 按 `issues` 选提示语。
+
+**已知局限（不要把 score ≥ 3 当成对所有语言都有效的保证）**：
+
+- zxcvbn 的字典以英文为主。中文短语（`我的密码是一二三四五六七八`）、无声调拼音加日期（`wangxiaoming1234`、`zhangsan19900101`）这类密码会被高估成 4 分而放行。
+- 实测过 `@zxcvbn-ts/language-zh`：它的拼音字典带声调，对用户实际键入的无声调拼音几乎匹配不上，在 ≥ 3 的门槛下没有改变任何放行或拒绝的决定，却多 660 KiB（minified），所以没有带上。`language-en` 在 24 个样本里只多拦下 2 个，却多 1174 KiB，也没有带。
+- score 3 的区间是约 1e8 到 1e10 次猜测，zxcvbn 的说法是"对离线慢哈希场景有中等保护"；≥ 1e10 才是 4。这条门槛是底线，不是目标。对中文用户，强度指示器应当提示"建议使用长随机口令或随机词组"，不要只靠分数。
+
 ---
 
 
@@ -615,7 +657,7 @@ src/db/vault-schema.ts
 
 **Recovery Key 回填校验**（替代"我已保存"勾选框）：展示 Recovery Key 后，随机要求用户输入其中 3 个指定位置的分组（例如第 2、7、12 组）；全部匹配才启用"继续"。这一步在内存里完成，通过后才会提交到数据库。
 
-**最低主密码强度**（Task 3.1）：长度 ≥ 12，且强度估算得分 ≥ 3（zxcvbn 或等价实现），否则不允许创建。备份文件的离线防护主要靠主密码强度，不能只靠用户自觉。
+**最低主密码强度**：长度 ≥ 12 且 zxcvbn 得分 ≥ 3。**强制执行在服务层**（§5.4），UI 不重复实现规则，强度指示器调用 `service.evaluatePassword()`，初始化、改主密码、恢复三个页面都用同一个。备份文件的离线防护主要靠主密码强度，不能只靠用户自觉。
 
 ### 6.3 路由与守卫
 
@@ -679,24 +721,37 @@ function VaultGuard() {
 
 - [ ] **Side Panel 生命周期**：在真实 Chrome 里验证关闭 Side Panel 后页面是否销毁、内存里的 `CryptoKey` 是否随之丢失；同时验证多个窗口是否各有一个独立实例。结果写回 §4.1。
 - [ ] **Argon2id**：评估 `hash-wasm` / `@noble/hashes`（`argon2-browser` 最后发布于 2022-04，不再考虑）。验证 manifest 加 `'wasm-unsafe-eval'` 的效果，起点参数 m=64MiB、t=3、p=1，在低端设备实测，目标 ≤1s 且不低于 OWASP 最低配置（19 MiB、t=2、p=1）。是否需要放进 Worker 避免阻塞 UI。
+  - **已做（Node 基准，`scripts/spike-argon2id-bench.mjs`）**。本机 i7-13700H、Node 22，每个配置每个样本一个独立子进程，取冷启动中位数：
+
+    | 配置 | hash-wasm | noble 同步（纯 JS） | noble 异步（纯 JS） |
+    |---|---|---|---|
+    | 19 MiB, t=2（OWASP 最低） | 32 ms | 182 ms | 258 ms |
+    | 46 MiB, t=1（OWASP 最低） | 46 ms | 207 ms | 356 ms |
+    | 64 MiB, t=3（方案起点） | 148 ms | 758 ms | 1372 ms（超 1s） |
+
+    PBKDF2-SHA256 600k（WebCrypto）为 90 ms。hash-wasm 峰值内存约比基线多 37 / 45 / 63 MiB。三种实现在 m=1 MiB、t=2、p=1 时输出一致，参数和 salt 相同则换库不破坏已存数据。
+  - **结论倾向**：要用 Argon2id 就选 hash-wasm。它在计算期间**完全占住线程**（最长卡顿约等于整段耗时），所以必须放进 Worker；noble 异步不阻塞，但 64 MiB / t=3 在这台高端机上就超过 1s。
+  - **已做（manifest）**：加 `"extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"` 后 `vite build` 通过，产物 manifest 只多出这一个 CSP 块。已还原，KDF 没定之前不放宽 CSP。构建通过只证明 manifest 合法，**不证明 WASM 能在 Chrome 里跑起来**。
+  - **未做**：低端设备实测（这是 ≤1s 目标的真正判据，上面的数字只代表这一台机器和 Node）；Chrome 的 Side Panel / Worker 里 WASM 是否真的能实例化；Worker 在这个 CSP 下的行为。
 - [ ] 产出决策：第一版用 Argon2id，还是 PBKDF2-SHA256 600k + 自动升级。无论哪种，`KdfParams` 联合类型都已在 §2.1 定义。
+  - 实际顺序是 Task 1.1–1.3 先于 1.0 完成。因为联合类型已经留好 Argon2id 分支（现在遇到会抛 `UnsupportedKdfError`），这个决定不会改变存储格式，只需要在 `deriveMasterWrapKey` 里补一个分支。
 
 **Task 1.1: RiddleVaultDB（8–10h）**
-- [ ] `src/db/vault-schema.ts`：`vaultKeys` / `vaultSettings` / `vaultRecords` / `vaultSnapshot`，见 §3
-- [ ] 回归测试：Notes 的导入、导出、搜索前后，Vault 各表行数不变
-- [ ] 回归测试：对 `SidecarDB` 调 `delete()` 不影响 `RiddleVaultDB`
+- [x] `src/db/vault-schema.ts`：`vaultKeys` / `vaultSettings` / `vaultRecords` / `vaultSnapshot`，见 §3
+- [x] 回归测试：Notes 的导入、导出、搜索前后，Vault 各表行数不变
+- [x] 回归测试：对 `SidecarDB` 调 `delete()` 不影响 `RiddleVaultDB`
 
 **Task 1.2: CryptoService（16–20h）**
 
 接口见 §5.1，签名在这一步冻结。
 
-- [ ] `deriveMasterWrapKey(password, kdf)`：入口处 `normalize('NFKC')`；支持 `KdfParams` 联合类型
-- [ ] `deriveRecoveryWrapKey`：HKDF-SHA256，`usages = ['encrypt','decrypt']`
-- [ ] `importSessionKey` 使用 `extractable: false`；`computeKeyId`
-- [ ] `wrap` / `unwrap` 以原始字节进出，`ArrayBuffer` 用完清零
-- [ ] `encryptSegment` / `decryptSegment`：每次新 IV，**AAD 绑定 `recordId | type | formatVersion | segment`**，解密前校验 `iv.length === 12`
-- [ ] Recovery Key：生成、格式化、`parseRecoveryKey`（规范化、字母表、填充位、SHA-256 校验和），见 §2.2
-- [ ] 单元测试：
+- [x] `deriveMasterWrapKey(password, kdf)`：入口处 `normalize('NFKC')`；支持 `KdfParams` 联合类型（PBKDF2 已实现；Argon2id 分支是占位，抛 `UnsupportedKdfError`，等 Task 1.0）
+- [x] `deriveRecoveryWrapKey`：HKDF-SHA256，`usages = ['encrypt','decrypt']`
+- [x] `importSessionKey` 使用 `extractable: false`；`computeKeyId`
+- [x] `wrap` / `unwrap` 以原始字节进出，`ArrayBuffer` 用完清零
+- [x] `encryptSegment` / `decryptSegment`：每次新 IV，**AAD 绑定 `recordId | type | formatVersion | segment`**，解密前校验 `iv.length === 12`
+- [x] Recovery Key：生成、格式化、`parseRecoveryKey`（规范化、字母表、填充位、SHA-256 校验和），见 §2.2
+- [x] 单元测试（`tests/vault/crypto-service.test.ts`、`recovery-key.test.ts`）：
   - Recovery Key 三组固定测试向量逐字比对（§2.2）
   - 拒绝：填充位非 0、含 `0189`、缺组/多组/错前缀、校验和不符
   - NFKC：同一密码的预组合与分解形式（如 `é`、全角字符）派生出相同的 key
@@ -708,42 +763,46 @@ function VaultGuard() {
   - HKDF 派生的 key 能被 `encrypt` / `decrypt` 使用（防止 usages 写错）
 
 **Task 1.3: VaultSession（12–16h）**
-- [ ] 接口见 §4.2：`open` / `lock` / `lockLocal` / `announce` / `requireKey` / `assertEpoch` / `subscribe`
-- [ ] 测试：两个 Session 实例互相收到 `lock` 后各自只锁一次，`epoch` 只增加一次（不无限广播）
-- [ ] 测试：`wrapper-changed`、`imported` 广播会让其他实例锁定
-- [ ] 测试：在途 `getRecord` 在 `await` 之间被锁定，结果被丢弃并抛 `VaultLockedError`
-- [ ] 自动锁定：`checkIdle` + 轮询 + `visibilitychange`；超时值取自 settings；用假时钟测试休眠场景
+- [x] 接口见 §4.2：`open` / `lock` / `lockLocal` / `announce` / `requireKey` / `assertEpoch` / `subscribe`（另有 `isOpen`、`touch`、`checkIdle`、`startIdleWatch`、`dispose`）
+- [x] 测试：两个 Session 实例互相收到 `lock` 后各自只锁一次，`epoch` 只增加一次（不无限广播）
+- [x] 测试：`wrapper-changed`、`imported` 广播会让其他实例锁定
+- [x] 测试：在途 `getRecord` 在 `await` 之间被锁定，结果被丢弃并抛 `VaultLockedError`（Session 层的 `assertEpoch` 测试，和 `vault-service-records.test.ts` 里的服务层测试）
+- [x] 自动锁定：`checkIdle` + 轮询 + `visibilitychange`；用假时钟测试休眠场景
+- [ ] 自动锁定的超时值取自 `vaultSettings.autoLockTimeoutMs`。**还没接上**：Session 只有 `getTimeoutMs` 注入口，默认 5 分钟；`VaultService` 目前只在初始化时写入默认设置，没有读取或修改设置的方法，也没有人把设置接到 Session 上。Task 4.2 的"自动锁定超时设置"依赖这一条
 
 ### Phase 2: 核心功能（44–56h）
 
 **Task 2.1: VaultService（28–36h）**
-- [ ] `initialize`：内存中完成、回填回调、短事务存在性检查，见 §5.2
-- [ ] 解锁（主密码 / Recovery Key）、错误分类见 §5.3
-- [ ] `verifyMasterPassword`（不碰 Session）
-- [ ] `changeMasterPassword`：`expectedRevision` + 试解 + 提交后 `announce`
-- [ ] `recoverAccess` / `rotateRecoveryKey` 两个独立方法，见 §2.4
-- [ ] KDF 自动升级的静默重包装（同样走 CAS）
-- [ ] 记录 CRUD：两段加密、`keyId` 校验、`updateRecord` 保留 `createdAt`
-- [ ] 故障注入测试：每个短事务中途 abort、`onRecoveryKey` 回调 reject、两个 VaultService 实例同时 `initialize`（只有一个成功）、两个实例并发 `changeMasterPassword`（后者抛 `ConflictError`）
-- [ ] 测试：步骤一提交后回调取消，旧 Recovery Key 仍可解锁，新主密码也可解锁
-- [ ] 测试：库被"导入"替换后，旧 Session 写记录被 `keyId` 校验拒绝
+测试在 `tests/vault/vault-service-unlock.test.ts`、`vault-service-keys.test.ts`、`vault-service-records.test.ts`。
+
+- [x] `initialize`：内存中完成、回填回调、短事务存在性检查，见 §5.2
+- [x] 解锁（主密码 / Recovery Key）、错误分类见 §5.3
+- [x] `verifyMasterPassword`（不碰 Session）
+- [x] `changeMasterPassword`：`expectedRevision` + 试解 + 提交后 `announce`
+- [x] `recoverAccess` / `rotateRecoveryKey` 两个独立方法，见 §2.4
+- [x] KDF 自动升级的静默重包装（同样走 CAS）
+- [x] 记录 CRUD：两段加密、`keyId` 校验、`updateRecord` 保留 `createdAt`
+- [x] 故障注入测试：每个短事务中途 abort、`onRecoveryKey` 回调 reject、两个 VaultService 实例同时 `initialize`（只有一个成功）、两个实例并发 `changeMasterPassword`（后者抛 `ConflictError`）
+- [x] 测试：步骤一提交后回调取消，旧 Recovery Key 仍可解锁，新主密码也可解锁
+- [x] 测试：库被"导入"替换后，旧 Session 写记录被 `keyId` 校验拒绝（这里的"导入"是直接改库模拟的；真正的导入流程是 Task 4.1）
+- [x] 主密码强度策略（§5.4）：`initialize` / `changeMasterPassword` / `recoverAccess` 三处强制，策略可注入，`evaluatePassword` 供 UI 指示器使用（`tests/vault/password-policy.test.ts`）
 
 **Task 2.2: 隔离与安全（8–10h）**
-- [ ] Vault 逻辑只放在 Side Panel，不进 Service Worker 消息路由
+- [ ] Vault 逻辑只放在 Side Panel，不进 Service Worker 消息路由（现状成立：`src/background` 里没有任何 Vault 代码，但没有测试守着）
 - [ ] 如果将来必须在 SW 里加 `VAULT_*`：按 allow-list，校验 `sender.id === chrome.runtime.id && sender.tab === undefined`；错误不得回传 `error.message`
-- [ ] 测试：从 content script 上下文发 `VAULT_*` 消息被拒绝
-- [ ] 日志只记 id 和 type，不记 title / secret
+- [ ] 测试：从 content script 上下文发 `VAULT_*` 消息被拒绝（没有对应测试）
+- [ ] 日志只记 id 和 type，不记 title / secret（现状：`src/vault` 里只有一处 `console.error`，内容固定、不含数据，有测试守着；但没有统一的日志规则和扫描测试，见 Task 5.1）
 
 **Task 2.3: Recovery Key 辅助（8–10h）**
-- [ ] "Test Recovery Key"：初始化后随时让用户输入 Recovery Key，验证能否解开 wrapper（不改任何数据）
-- [ ] Settings"重新生成"复用 `rotateRecoveryKey`，要求主密码
-- [ ] `recoveryRotationRequired` 为 true 时的持续提示
+- [ ] "Test Recovery Key"：初始化后随时让用户输入 Recovery Key，验证能否解开 wrapper（不改任何数据）。**没有对应的服务方法**：`unlockWithRecoveryKey` 会打开 Session，不是纯验证，需要一个类似 `verifyMasterPassword` 的 `verifyRecoveryKey`
+- [ ] Settings"重新生成"复用 `rotateRecoveryKey`，要求主密码（服务层的 `rotateRecoveryKey` 已有且要求主密码，见 Task 2.1；缺的是 Settings 入口，属于 UI）
+- [ ] `recoveryRotationRequired` 为 true 时的持续提示（UI；服务层已经会写这个标记）
 
 ### Phase 3: UI（58–74h）
 
 **Task 3.1: 初始化（18–24h）**
 - [ ] 4 步流程，状态只在内存
-- [ ] 最低主密码强度：长度 ≥ 12 且 zxcvbn 得分 ≥ 3
+- [ ] 强度指示器：调用 `service.evaluatePassword()`，不自己实现规则（强制执行已在服务层，见 §5.4）；对中文用户额外提示"建议使用长随机口令或随机词组"（zxcvbn 对中文和拼音会高估）。初始化、改主密码、恢复三个页面共用
 - [ ] Recovery Key 回填校验（§6.2），不是勾选框
 - [ ] 下载 `.txt` 的文件头警示
 
@@ -796,20 +855,20 @@ function VaultGuard() {
 ### Phase 5: 测试与优化（40–54h）
 
 **Task 5.1: 安全测试（18–24h）**
-- [ ] 并发：两个实例同时初始化、改密码、导入
+- [ ] 并发：两个实例同时初始化、改密码、导入（初始化、改密码已有测试；导入等 Task 4.1）
 - [ ] 内存残留检查，具体步骤：Vault 里放哨兵字符串 `SENTINEL-7f3a…` → 打开详情页显示 → 锁定 → DevTools 强制 GC → 抓堆快照 → 搜索哨兵。记录结果；JS 字符串无法清零，目标是"锁定后 DOM 与组件 state 里没有"，不承诺内存取证安全
-- [ ] "IndexedDB 无明文"：直接读取 `vaultRecords` 的原始字节，对 `Uint8Array` 做子串扫描，查找已知秘密的 UTF-8 字节序列。**不要把密文 TextDecoder 解码后断言**，那个断言永远通过
+- [x] "IndexedDB 无明文"：直接读取 `vaultRecords` 的原始字节，对 `Uint8Array` 做子串扫描，查找已知秘密的 UTF-8 字节序列。**不要把密文 TextDecoder 解码后断言**，那个断言永远通过（`vault-service-records.test.ts` 的"IndexedDB 里不含明文"，还扫了 wrapper；`vault-service-unlock.test.ts` 也有"库里没有主密码、Recovery Key、Vault Key 的任何形式"）
 - [ ] 日志扫描：运行完整流程，断言 console 输出不含秘密
 
 **Task 5.2: 集成测试（12–16h）**
-- [ ] 初始化 → 解锁 → CRUD → 锁定 → 重新解锁
-- [ ] 改密码后旧密码失败、新密码成功、记录完整
-- [ ] Recovery 两步，包含步骤间中断
-- [ ] 备份 → 覆盖导入 → 快照回退
+- [x] 初始化 → 解锁 → CRUD → 锁定 → 重新解锁（`vault-service-records.test.ts` 的"完整流程"）
+- [x] 改密码后旧密码失败、新密码成功、记录完整（`vault-service-keys.test.ts`）
+- [x] Recovery 两步，包含步骤间中断（`vault-service-keys.test.ts`）
+- [ ] 备份 → 覆盖导入 → 快照回退（等 Task 4.1）
 
 **Task 5.3: 性能（10–14h）**
 - [ ] KDF 耗时，低端设备目标 < 2s
-- [ ] 100 条记录列表（只解密 summary）< 500ms
+- [x] 100 条记录列表（只解密 summary）< 500ms（`vault-service-records.test.ts` 的"100 条记录的列表加载 < 500ms"。这是测试环境里 fake-indexeddb 加小迭代次数的数字，不是真实 Chrome）
 - [ ] 锁定响应 < 50ms
 
 ---
@@ -862,13 +921,13 @@ describe('Recovery Key', () => {
     ['ff'.repeat(32), 'RN-V1-7777-7777-7777-7777-7777-7777-7777-7777-7777-7777-7777-7777-777Q-V6LB'],
   ];
 
-  test.each(vectors)('固定测试向量 %s', (hex, expected) => {
-    expect(formatRecoveryKey(fromHex(hex))).toBe(expected);
-    expect(toHex(parseRecoveryKey(expected))).toBe(hex);
+  test.each(vectors)('固定测试向量 %s', async (hex, expected) => {
+    expect(await formatRecoveryKey(fromHex(hex))).toBe(expected);
+    expect(toHex(await parseRecoveryKey(expected))).toBe(hex);
   });
 
-  test('生成的格式', () => {
-    const { formatted } = svc.generateRecoveryKey();
+  test('生成的格式', async () => {
+    const { formatted } = await svc.generateRecoveryKey();
     expect(formatted).toMatch(/^RN-V1-([A-Z2-7]{4}-){13}[A-Z2-7]{4}$/);   // 13 组数据 + 1 组校验
   });
 
@@ -879,12 +938,13 @@ describe('Recovery Key', () => {
     ['含 0/1/8/9', s => s.replace('AAAQ', 'AA0Q')],
     ['缺一组', s => s.replace('-MMG4', '')],
     ['前缀错误', s => s.replace('RN-V1', 'RN-V2')],
-  ])('拒绝：%s', (_name, mutate) => {
-    expect(() => parseRecoveryKey(mutate(vectors[0][1]))).toThrow(RecoveryKeyFormatError);
+  ])('拒绝：%s', async (_name, mutate) => {
+    // parseRecoveryKey 是异步的：必须 await expect(...).rejects，写成 expect(() => ...).toThrow 会永远通过
+    await expect(parseRecoveryKey(mutate(vectors[0][1]))).rejects.toBeInstanceOf(RecoveryKeyFormatError);
   });
 
-  test('校验和不符抛 RecoveryKeyChecksumError', () => {
-    expect(() => parseRecoveryKey(vectors[0][1].replace('MMG4', 'MMG5'))).toThrow(RecoveryKeyChecksumError);
+  test('校验和不符抛 RecoveryKeyChecksumError', async () => {
+    await expect(parseRecoveryKey(vectors[0][1].replace('MMG4', 'MMG5'))).rejects.toBeInstanceOf(RecoveryKeyChecksumError);
   });
 });
 
@@ -1313,19 +1373,24 @@ test('Vault 备份：app 不等于 riddle-notes-vault 被拒绝', async () => { 
 
 ## 14. 开工顺序与待决策
 
-### 开工顺序
-1. **Task 1.0 两个 spike**（Side Panel 生命周期、Argon2id）。结果会改动 §4.1 和 §1.2，需要同步更新文档。
-2. **Task 1.1** `RiddleVaultDB`。
-3. **Task 1.2** `CryptoService`，接口见 §5.1，测试向量见 §2.2。
-4. **Task 1.3** `VaultSession`。
-5. Phase 2 起按 §7 推进。
+### 进度与下一步
+**已完成**：Task 1.1 `RiddleVaultDB`、1.2 `CryptoService`、1.3 `VaultSession`、2.1 `VaultService`（含主密码强度策略）。
+
+**部分完成**：Task 1.0。Argon2id 的 Node 基准和 manifest 构建试验做了（结果在 §7 Task 1.0），Side Panel 生命周期和低端机实测没做。
+
+**下一步**（按依赖排序）：
+1. **Task 1.0 剩下的部分**：在真实 Chrome 里验证 Side Panel 关闭是否销毁页面（§4.1 的假设至今没实测）；低端机上跑 `scripts/spike-argon2id-bench.mjs`；在 Chrome 的 Worker 里验证 hash-wasm 能否在 `'wasm-unsafe-eval'` 下实例化。结果会改动 §4.1 和 §1.2。
+2. **自动锁定超时接到设置**（Task 1.3 最后一条）：服务层需要读写 `vaultSettings` 的方法，并把 `getTimeoutMs` 接到 Session。Task 4.2 依赖它。
+3. Task 2.2 / 2.3 剩下的服务层部分（`verifyRecoveryKey`、SW 隔离的守卫测试）。
+4. Phase 3 UI，Phase 4 备份，按 §7 推进。
 
 ### 待决策
-- [ ] **KDF**：Argon2id 还是 PBKDF2 600k + 自动升级（由 Task 1.0 实测结果决定）
+- [ ] **KDF**：Argon2id 还是 PBKDF2 600k + 自动升级（由 Task 1.0 实测结果决定）。Node 数据倾向 hash-wasm + Worker，但低端机数据没有
 - [ ] **自动锁定默认值**：5 分钟（已同意）
 - [ ] **密码生成器**：延后到 P1（已同意）
 
 ### 修订记录
+- **v1.2 状态同步**（版本号不变，内容未重新评审）：§7 的复选框按代码和测试勾选，没有测试对应的不勾，并写明缺什么；状态行和附录 C 里"没有任何 Vault 代码"的说法更正；新增 §5.4 主密码强度策略，强制执行放在服务层，§6.2、Task 3.1 随之改成"UI 只展示"；§5.1、§2.2、§9.1 里 `generateRecoveryKey` / `parseRecoveryKey` 更正为异步并补上 `formatRecoveryKey`；Task 1.0 补入 Node 基准结果与 manifest 构建试验。§12、§13 没有动。
 - **v1.2**：按第二轮评审重写 §2–§9、§11–§14。主要改动：HKDF usages 改为 `encrypt/decrypt`；乐观锁真正落地（`expectedRevision` 与 `keyId`）；`lock()` 与 `lockLocal()` 分离；Recovery 拆成 `recoverAccess` 与 `rotateRecoveryKey`；Session 统一入口 `open()` 与 `extractable:false`；路由守卫修复；错误分类改为三类；Recovery Key 规范与测试向量定稿；AAD、IV 长度校验、字节清零写入 Task 1.2；`vaultSnapshot` 并入 v1；Argon2id spike 前移到 Task 1.0；§9 测试全部对齐新接口。
 - **v1.1**：第一轮评审后的修订。
 - **v1.0**：初始版本。
@@ -1340,10 +1405,11 @@ test('Vault 备份：app 不等于 riddle-notes-vault 被拒绝', async () => { 
 - RFC 4648（Base32）、RFC 5869（HKDF）
 
 ### B. 外部依赖（待 Task 1.0 / 3.1 确认）
-- **Argon2id**（如采用）：`hash-wasm` 或 `@noble/hashes`。`argon2-browser` 最后发布于 2022-04，不再考虑。
-- **密码强度**：`zxcvbn`（体积较大，需评估）或等价的轻量实现。
+- **Argon2id**（如采用）：`hash-wasm`（Node 基准里最快，需放 Worker）或 `@noble/hashes`（纯 JS，64 MiB / t=3 超过 1s，不推荐）。两者现在都在 `devDependencies`，是评估用的；正式采用时要挪到 `dependencies`，没采用就卸载。`argon2-browser` 最后发布于 2022-04，不再考虑。
+- **密码强度**：已定，`@zxcvbn-ts/core` 4.3.0 + `@zxcvbn-ts/language-common` 4.2.0（`dependencies`），懒加载；不带 `language-en` / `language-zh`，原因见 §5.4。原版 `zxcvbn` 自 2022-06 起不再更新，没有采用。
 - **Base32**：按 RFC 4648 自行实现即可，需要额外的填充位校验，现成库通常不做。
 
 ### C. 文档状态
-- 本文档是技术方案，`src/` 下目前没有任何 Vault 代码。
+- 本文档是技术方案。已实现的部分见 §7 的勾选，代码在 `src/vault/` 与 `src/db/vault-schema.ts`，测试在 `tests/vault/`。
+- §12、§13 是**发布前**逐项验收的清单，这次没有勾：它们要求能指到一个测试或一次手工验证，等对应的功能（UI、备份）做完后再逐项过。
 - 产品需求以对话中的 PRD 为准，仓库里尚无 `vault-prd.md`；若要保留请单独落成文件。

@@ -1,5 +1,6 @@
 import { RiddleVaultDB } from '../../src/db/vault-schema';
 import { CryptoService } from '../../src/vault/crypto/crypto-service';
+import type { PasswordPolicy } from '../../src/vault/services/password-policy';
 import { VaultService, type KdfPolicy } from '../../src/vault/services/vault-service';
 import { VaultSession } from '../../src/vault/services/vault-session';
 import type { KdfParams, VaultKeys, VaultRecord } from '../../src/vault/types';
@@ -22,6 +23,19 @@ export function fastKdfPolicy(iterations = 1000): KdfPolicy {
   };
 }
 
+/**
+ * 宽松的强度策略:任何非空密码都放行。**只给测试用**。
+ * 生产默认是严格策略;现有测试里有大量 'wrong'、'x'、'another' 这样的短密码,
+ * 它们测的是别的行为(认证失败、并发冲突),不该被强度策略挡住。
+ * 严格策略有专门的测试(tests/vault/password-policy.test.ts)。
+ */
+export const permissivePasswordPolicy: PasswordPolicy = {
+  async evaluate(password) {
+    const length = Array.from(password.normalize('NFKC')).length;
+    return { score: 4, length, ok: true, issues: [] };
+  },
+};
+
 export interface TestVault {
   name: string;
   db: RiddleVaultDB;
@@ -37,6 +51,8 @@ export interface TestVaultOptions {
   /** 共用同一个库和广播频道,模拟打开了两个 Side Panel */
   peerOf?: TestVault;
   kdfPolicy?: KdfPolicy;
+  /** 不传就用宽松策略。要测严格策略时传 DEFAULT_PASSWORD_POLICY */
+  passwordPolicy?: PasswordPolicy;
   now?: () => number;
   newId?: () => string;
 }
@@ -53,6 +69,7 @@ export function createTestVault(options: TestVaultOptions = {}): TestVault {
     session,
     crypto: cryptoService,
     kdfPolicy: options.kdfPolicy ?? fastKdfPolicy(),
+    passwordPolicy: options.passwordPolicy ?? permissivePasswordPolicy,
     now: options.now,
     newId: options.newId,
   });
