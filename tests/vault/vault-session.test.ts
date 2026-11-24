@@ -687,3 +687,171 @@ describe('dispose', () => {
     expect(b.isOpen()).toBe(true);
   });
 });
+
+describe('自动锁定超时:内存缓存 setAutoLockTimeoutMs', () => {
+  test('没设过时用注入的 getTimeoutMs,再没有就用默认的 5 分钟', () => {
+    expect(makeSession({ getTimeoutMs: () => 123_000 }).getAutoLockTimeoutMs()).toBe(123_000);
+    expect(makeSession().getAutoLockTimeoutMs()).toBe(300_000);
+  });
+
+  test('设过之后内存里的值优先于 getTimeoutMs', () => {
+    const session = makeSession({ getTimeoutMs: () => 123_000 });
+    session.setAutoLockTimeoutMs(60_000);
+    expect(session.getAutoLockTimeoutMs()).toBe(60_000);
+  });
+
+  test('改小之后立即生效:下一次 checkIdle 就按新值锁定', async () => {
+    const clock = { now: 1000 };
+    const session = makeSession({ now: () => clock.now });
+    await openSession(session);
+
+    clock.now += 61_000; // 默认 5 分钟,还没到
+    session.checkIdle();
+    expect(session.isOpen()).toBe(true);
+
+    session.setAutoLockTimeoutMs(60_000); // 改成 1 分钟,已经超了
+    session.checkIdle();
+    expect(session.isOpen()).toBe(false);
+  });
+
+  test('改成 0(Never)之后永不自动锁定,即使注入的回调说要锁', async () => {
+    const clock = { now: 1000 };
+    const session = makeSession({ getTimeoutMs: () => 60_000, now: () => clock.now });
+    await openSession(session);
+
+    session.setAutoLockTimeoutMs(0);
+    clock.now += 10 ** 12;
+    session.checkIdle();
+    expect(session.isOpen()).toBe(true);
+  });
+
+  test.each([-1, NaN, Infinity, -Infinity])('非法的超时 %s:TypeError,原来的值不变', value => {
+    const session = makeSession();
+    session.setAutoLockTimeoutMs(60_000);
+    expect(() => session.setAutoLockTimeoutMs(value)).toThrow(TypeError);
+    expect(session.getAutoLockTimeoutMs()).toBe(60_000);
+  });
+
+  test.each(['60000', null, undefined, {}])('不是数字的超时 %s:TypeError', value => {
+    const session = makeSession();
+    expect(() => session.setAutoLockTimeoutMs(value as unknown as number)).toThrow(TypeError);
+  });
+
+  test('锁定和重新打开都不会丢掉这个值(它不是秘密,下次解锁时服务层会再读一遍)', async () => {
+    const session = makeSession();
+    session.setAutoLockTimeoutMs(60_000);
+    await openSession(session);
+    session.lockLocal();
+    expect(session.getAutoLockTimeoutMs()).toBe(60_000);
+    await openSession(session);
+    expect(session.getAutoLockTimeoutMs()).toBe(60_000);
+  });
+});
+
+describe('settings-changed 广播:通知其他面板,但不锁定它们', () => {
+  test('其他面板的监听者被调用,而且这些面板保持打开', async () => {
+    const [a, b, c] = makePeers(3);
+    await openSession(a);
+    await openSession(b);
+    await openSession(c);
+    const heardB = vi.fn();
+    const heardC = vi.fn();
+    b.onSettingsChanged(heardB);
+    c.onSettingsChanged(heardC);
+    const epochs = [a, b, c].map(s => s.getEpoch());
+
+    a.announceSettingsChanged();
+
+    await vi.waitFor(() => expect(heardB).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(heardC).toHaveBeenCalledTimes(1));
+    await sleep(100);
+    expect([a, b, c].every(s => s.isOpen())).toBe(true);
+    expect([a, b, c].map(s => s.getEpoch())).toEqual(epochs); // 没有任何一个被 lockLocal
+  });
+
+  test('发送方自己的监听者不会被调用(BroadcastChannel 不会回送给自己)', async () => {
+    const [a, b] = makePeers(2);
+    const heardA = vi.fn();
+    const heardB = vi.fn();
+    a.onSettingsChanged(heardA);
+    b.onSettingsChanged(heardB);
+
+    a.announceSettingsChanged();
+
+    await vi.waitFor(() => expect(heardB).toHaveBeenCalledTimes(1));
+    await sleep(100);
+    expect(heardA).not.toHaveBeenCalled();
+  });
+
+  test('不会无限互相广播:每个监听者只被调用一次', async () => {
+    const [a, b] = makePeers(2);
+    const heardA = vi.fn();
+    const heardB = vi.fn();
+    a.onSettingsChanged(heardA);
+    b.onSettingsChanged(heardB);
+
+    a.announceSettingsChanged();
+    await sleep(200);
+
+    expect(heardB).toHaveBeenCalledTimes(1);
+    expect(heardA).not.toHaveBeenCalled();
+  });
+
+  test('未打开的面板也能收到(它下次解锁时会读到新值,但提前刷新也无妨)', async () => {
+    const [a, b] = makePeers(2);
+    const heard = vi.fn();
+    b.onSettingsChanged(heard);
+    a.announceSettingsChanged();
+    await vi.waitFor(() => expect(heard).toHaveBeenCalledTimes(1));
+    expect(b.isOpen()).toBe(false);
+  });
+
+  test('onSettingsChanged 返回的函数可以取消监听', async () => {
+    const [a, b] = makePeers(2);
+    const heard = vi.fn();
+    const off = b.onSettingsChanged(heard);
+    off();
+
+    a.announceSettingsChanged();
+    await sleep(100);
+
+    expect(heard).not.toHaveBeenCalled();
+  });
+
+  test('一个监听者抛错,不影响其他监听者,日志里没有错误内容', async () => {
+    const [a, b] = makePeers(2);
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const second = vi.fn();
+    b.onSettingsChanged(() => {
+      throw new Error('super-secret-detail');
+    });
+    b.onSettingsChanged(second);
+
+    a.announceSettingsChanged();
+
+    await vi.waitFor(() => expect(second).toHaveBeenCalledTimes(1));
+    const logged = JSON.stringify(log.mock.calls);
+    expect(logged).toContain('settings listener failed');
+    expect(logged).not.toContain('super-secret-detail');
+  });
+
+  test('锁定类广播仍然会锁定:settings-changed 没有改变它们的行为', async () => {
+    const [a, b] = makePeers(2);
+    await openSession(a);
+    await openSession(b);
+    a.announce('wrapper-changed');
+    await vi.waitFor(() => expect(b.isOpen()).toBe(false));
+  });
+
+  test('dispose 之后监听者被清空,收不到通知', async () => {
+    const [a, b] = makePeers(2);
+    const heard = vi.fn();
+    b.onSettingsChanged(heard);
+    b.dispose();
+
+    a.announceSettingsChanged();
+    await sleep(100);
+
+    expect(heard).not.toHaveBeenCalled();
+  });
+});

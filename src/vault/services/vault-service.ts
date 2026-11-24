@@ -31,6 +31,8 @@ import {
   DEFAULT_AUTO_LOCK_TIMEOUT_MS,
   VAULT_FORMAT_VERSION,
   VAULT_RECORD_TYPES,
+  isAutoLockTimeout,
+  type AutoLockTimeoutMs,
   type KdfParams,
   type PasswordEvaluation,
   type RecordSegment,
@@ -90,6 +92,12 @@ export class VaultService {
     this.passwordPolicy = options.passwordPolicy ?? DEFAULT_PASSWORD_POLICY;
     this.now = options.now ?? Date.now;
     this.newId = options.newId ?? (() => crypto.randomUUID());
+
+    // 别的面板改了自动锁定时间:重新从库里读。收到的面板不会被锁定。
+    // 监听随 session.dispose() 一起清掉,服务本身不需要单独的 dispose
+    this.session.onSettingsChanged(() => {
+      void this.refreshAutoLock();
+    });
   }
 
   // —— 初始化 ——————————————————————————————————————————
@@ -145,6 +153,8 @@ export class VaultService {
         });
       });
 
+      // 刚写进库的就是默认值,不需要再读一遍;同步设置,打开之后第一次 checkIdle 用的就是它
+      this.session.setAutoLockTimeoutMs(DEFAULT_AUTO_LOCK_TIMEOUT_MS);
       // 刚创建的库不存在"期间被锁定"的问题,不传 expectedEpoch
       this.session.open(sessionKey, keyId);
     } finally {
@@ -162,6 +172,8 @@ export class VaultService {
   async unlockWithMasterPassword(password: string): Promise<void> {
     const epoch = this.session.getEpoch();
     const keys = await this.loadKeys();
+    // 在拿到原始密钥字节之前就读设置,不在持有字节期间再多等一次读库
+    await this.applyStoredAutoLock();
     const { raw, wrapKey } = await this.unwrapWithMaster(keys, password);
     let sessionKey: CryptoKey;
     try {
@@ -179,6 +191,7 @@ export class VaultService {
   async unlockWithRecoveryKey(input: string): Promise<void> {
     const epoch = this.session.getEpoch();
     const keys = await this.loadKeys();
+    await this.applyStoredAutoLock();
     const raw = await this.unwrapWithRecovery(keys, input);
     let sessionKey: CryptoKey;
     try {
@@ -226,6 +239,8 @@ export class VaultService {
   ): Promise<{ accessRestored: true; rotationRequired: true }> {
     await this.requireStrongPassword(newMasterPassword);
     const keys = await this.loadKeys();
+    // 在提交之前读设置:提交之后只剩同步的 open,不能再多出一个可能失败的 await(见下面的注释)
+    await this.applyStoredAutoLock();
     const raw = await this.unwrapWithRecovery(keys, recoveryKeyInput);
     try {
       await this.commitMasterWrapper(keys, raw, newMasterPassword, { rotationRequired: true });
@@ -401,6 +416,61 @@ export class VaultService {
    */
   evaluatePassword(password: string): Promise<PasswordEvaluation> {
     return this.passwordPolicy.evaluate(password);
+  }
+
+  // —— 自动锁定设置 ——————————————————————————————————
+
+  /**
+   * 当前保存的自动锁定时间。库里没有这一行、或值不在可选范围内,都按默认值返回,不抛错;
+   * 读库本身失败会抛。不要求已解锁:这个值不是秘密,而且解锁流程自己也要读它。
+   */
+  async getAutoLockTimeout(): Promise<AutoLockTimeoutMs> {
+    const row = await this.db.vaultSettings.get('singleton');
+    const value = row?.autoLockTimeoutMs;
+    return isAutoLockTimeout(value) ? value : DEFAULT_AUTO_LOCK_TIMEOUT_MS;
+  }
+
+  /**
+   * 修改自动锁定时间(1 / 5 / 15 分钟 / Never)。必须已解锁。
+   * 本面板立即生效;其他面板收到通知后自己重新读,**不会被锁定**。
+   * 不要求重新输入主密码:这个设置不涉及密钥,而且能走到设置页就说明已经解锁。
+   */
+  async setAutoLockTimeout(ms: AutoLockTimeoutMs): Promise<void> {
+    if (!isAutoLockTimeout(ms)) throw new TypeError('Invalid auto-lock timeout');
+    this.session.requireKey();
+
+    await this.db.vaultSettings.put({ id: 'singleton', autoLockTimeoutMs: ms });
+
+    // 写库成功之后才改内存:写失败时,内存里的值仍然和库里的一致
+    this.session.setAutoLockTimeoutMs(ms);
+    this.session.touch();
+    this.session.announceSettingsChanged();
+  }
+
+  /**
+   * 解锁、恢复时把库里的值推给 Session。读失败或值非法就用默认值:
+   * 不能因为读不出一个设置,就让用户进不了自己的保险箱。
+   */
+  private async applyStoredAutoLock(): Promise<void> {
+    let ms: AutoLockTimeoutMs;
+    try {
+      ms = await this.getAutoLockTimeout();
+    } catch {
+      ms = DEFAULT_AUTO_LOCK_TIMEOUT_MS;
+    }
+    this.session.setAutoLockTimeoutMs(ms);
+  }
+
+  /**
+   * 收到其他面板的"设置变了"之后重新读。读失败时**保持当前值**:
+   * 不能因为一次读库失败,就把用户选的 1 分钟悄悄改回默认的 5 分钟。
+   */
+  private async refreshAutoLock(): Promise<void> {
+    try {
+      this.session.setAutoLockTimeoutMs(await this.getAutoLockTimeout());
+    } catch {
+      // 保持当前值
+    }
   }
 
   /** 等后台任务(KDF 静默升级)结束。主要给测试用 */

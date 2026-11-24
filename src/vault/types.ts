@@ -58,7 +58,13 @@ export interface VaultKeys {
   updatedAt: number;
 }
 
-export type AutoLockTimeoutMs = 60_000 | 300_000 | 900_000 | 0;
+/** 可选的自动锁定时间:1 / 5 / 15 分钟,0 表示 Never。运行时校验和类型共用这一份清单 */
+export const AUTO_LOCK_TIMEOUT_OPTIONS = [60_000, 300_000, 900_000, 0] as const;
+export type AutoLockTimeoutMs = (typeof AUTO_LOCK_TIMEOUT_OPTIONS)[number];
+
+export function isAutoLockTimeout(value: unknown): value is AutoLockTimeoutMs {
+  return (AUTO_LOCK_TIMEOUT_OPTIONS as readonly unknown[]).includes(value);
+}
 
 /** 表 vaultSettings。0 表示 Never */
 export interface VaultSettings {

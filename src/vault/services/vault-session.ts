@@ -16,10 +16,19 @@ export const IDLE_CHECK_INTERVAL_MS = 10_000;
 
 /** 其他实例收到后都会立刻本地锁定 */
 export type SessionBroadcast = 'lock' | 'wrapper-changed' | 'imported';
-const BROADCAST_TYPES: readonly string[] = ['lock', 'wrapper-changed', 'imported'];
+const LOCKING_BROADCAST_TYPES: readonly string[] = ['lock', 'wrapper-changed', 'imported'];
+
+/**
+ * 设置变了。和上面几种**不同**:收到的实例不锁定,只通知监听者去重新读设置。
+ * 不能放进 LOCKING_BROADCAST_TYPES,否则改一下自动锁定时间就会把所有面板锁掉。
+ */
+export const SETTINGS_CHANGED = 'settings-changed';
 
 export interface VaultSessionOptions {
-  /** 返回当前自动锁定的毫秒数,0 表示 Never。每次检查都会调用,所以设置改了立即生效 */
+  /**
+   * 超时的默认来源,返回毫秒数,0 表示 Never。每次检查都会调用。
+   * 一旦调用过 setAutoLockTimeoutMs,内存里的值优先,这个回调不再被用到。
+   */
   getTimeoutMs?: () => number;
   channelName?: string;
   /** 测试时注入假时钟 */
@@ -33,9 +42,17 @@ export class VaultSession {
   private lastActivity = 0;
 
   private readonly subscribers = new Set<() => void>();
+  private readonly settingsListeners = new Set<() => void>();
   private readonly channel: BroadcastChannel | null;
   private readonly getTimeoutMs: () => number;
   private readonly now: () => number;
+
+  /**
+   * 自动锁定超时的内存缓存。设置存在 IndexedDB 里是异步的,而 checkIdle 必须同步
+   * (visibilitychange 回调里不能 await),所以由服务层读出来再推进来。
+   * 它不是秘密,锁定后也保留;下次解锁时服务层会重新读一遍。
+   */
+  private timeoutMs: number | null = null;
 
   private idleTimer: ReturnType<typeof setInterval> | null = null;
   private visibilityCleanup: (() => void) | null = null;
@@ -50,8 +67,10 @@ export class VaultSession {
         : new BroadcastChannel(options.channelName ?? VAULT_CHANNEL_NAME);
     if (this.channel) {
       this.channel.onmessage = (event: MessageEvent) => {
-        // 只做本地锁定,不再广播
-        if (BROADCAST_TYPES.includes(event.data?.type)) this.lockLocal();
+        const type = event.data?.type;
+        // 只做本地处理,不再广播
+        if (LOCKING_BROADCAST_TYPES.includes(type)) this.lockLocal();
+        else if (type === SETTINGS_CHANGED) this.notifySettingsChanged();
       };
     }
   }
@@ -135,11 +154,43 @@ export class VaultSession {
     if (this.key) this.lastActivity = this.now();
   }
 
+  /** 当前生效的自动锁定毫秒数,0 表示 Never。内存里的值优先,没设过就用构造时注入的回调 */
+  getAutoLockTimeoutMs(): number {
+    return this.timeoutMs ?? this.getTimeoutMs();
+  }
+
+  /**
+   * 由服务层调用:从 vaultSettings 读出来之后,或用户改了设置之后。立即生效。
+   * 这里只接受"有限的非负数",具体允许哪几档(1/5/15 分钟/Never)是服务层的事。
+   */
+  setAutoLockTimeoutMs(ms: number): void {
+    if (typeof ms !== 'number' || !Number.isFinite(ms) || ms < 0) {
+      throw new TypeError('Auto-lock timeout must be a non-negative finite number');
+    }
+    this.timeoutMs = ms;
+  }
+
   /** 对比时间戳而不是依赖 setTimeout 的精度:系统休眠时计时器可能不推进 */
   checkIdle(): void {
     if (!this.key) return;
-    const timeout = this.getTimeoutMs();
+    const timeout = this.getAutoLockTimeoutMs();
     if (timeout > 0 && this.now() - this.lastActivity >= timeout) this.lock();
+  }
+
+  /**
+   * 设置改了之后调用,通知其他面板去重新读。
+   * 与 announce 不同:收到的面板**不会被锁定**。
+   */
+  announceSettingsChanged(): void {
+    this.channel?.postMessage({ type: SETTINGS_CHANGED });
+  }
+
+  /** 收到其他面板的"设置变了"时回调。返回取消监听的函数 */
+  onSettingsChanged(callback: () => void): () => void {
+    this.settingsListeners.add(callback);
+    return () => {
+      this.settingsListeners.delete(callback);
+    };
   }
 
   /** 每隔 intervalMs 检查一次,并在页面重新可见时立即检查一次 */
@@ -169,9 +220,21 @@ export class VaultSession {
     this.stopIdleWatch();
     this.lockLocal();
     this.subscribers.clear();
+    this.settingsListeners.clear();
     if (this.channel) {
       this.channel.onmessage = null;
       this.channel.close();
+    }
+  }
+
+  private notifySettingsChanged(): void {
+    for (const callback of [...this.settingsListeners]) {
+      try {
+        callback();
+      } catch {
+        // 固定文案,不带错误内容
+        console.error('Vault session settings listener failed');
+      }
     }
   }
 
