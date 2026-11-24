@@ -79,14 +79,20 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
       {/* Search */}
       <form onSubmit={handleSearch} className="p-3 border-b border-line bg-aged/20">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-soft" />
           <input
             type="text"
             placeholder="搜索笔记..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="input text-sm"
+            className="input text-sm pr-10"
           />
+          <button
+            type="submit"
+            aria-label="搜索"
+            className="btn-icon absolute right-1 top-1/2 -translate-y-1/2"
+          >
+            <Search className="w-4 h-4" />
+          </button>
         </div>
       </form>
 
