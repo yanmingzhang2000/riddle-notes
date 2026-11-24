@@ -4,7 +4,7 @@
 **状态**: 评审中。Task 1.1–1.3 与 2.1（含主密码强度策略）已实现并有测试；Task 1.0 的两个 spike 只完成了 Node 侧，Side Panel 生命周期与低端机实测还没做；UI（Phase 3）、备份（Phase 4）未开始。进度以 §7 的勾选为准。  
 **范围**: 加密机制、密钥管理、数据存储、运行时安全、开发计划
 
-> 本文档是设计。实现在 `src/vault/` 与 `src/db/vault-schema.ts`，测试在 `tests/vault/`（9 个文件、388 个用例，全部通过）。文中代码块是接口与流程示意，不是可直接运行的实现；**与代码不一致时以代码和测试为准**。产品需求见对话中的 PRD，仓库里尚无 `vault-prd.md`。
+> 本文档是设计。实现在 `src/vault/` 与 `src/db/vault-schema.ts`，测试在 `tests/vault/`（10 个文件、455 个用例，全部通过）。文中代码块是接口与流程示意，不是可直接运行的实现；**与代码不一致时以代码和测试为准**。产品需求见对话中的 PRD，仓库里尚无 `vault-prd.md`。
 
 ## 目录
 
@@ -386,11 +386,16 @@ class VaultSession {
   private subscribers = new Set<() => void>();
   private channel = new BroadcastChannel('riddle-vault');
 
-  constructor(private getTimeoutMs: () => number) {
+  private timeoutMs: number | null = null;          // 自动锁定超时的内存缓存，见 §4.3
+  private settingsListeners = new Set<() => void>();
+
+  constructor(private getTimeoutMs: () => number) {   // 默认来源；setAutoLockTimeoutMs 之后内存值优先
     this.channel.onmessage = (e) => {
-      // 只做本地锁定，不再广播，否则两个实例会无限互相触发
+      // 只做本地处理，不再广播，否则两个实例会无限互相触发
       if (e.data?.type === 'lock' || e.data?.type === 'wrapper-changed' || e.data?.type === 'imported') {
         this.lockLocal();
+      } else if (e.data?.type === 'settings-changed') {
+        this.settingsListeners.forEach(cb => cb());   // 不锁定，只通知监听者去重新读设置
       }
     };
   }
@@ -420,9 +425,19 @@ class VaultSession {
 
   touch(): void { if (this.key) this.lastActivity = Date.now(); }
 
-  /** 定时器、visibilitychange 都调这个，对比 Date.now() 而不是依赖 setTimeout 精度 */
+  /** 当前生效的超时（毫秒，0 = Never）：内存值优先，没设过就用构造时的回调 */
+  getAutoLockTimeoutMs(): number { return this.timeoutMs ?? this.getTimeoutMs(); }
+  /** 由服务层推进来：解锁/恢复时从库里读出的值，或用户刚改的值。只校验有限非负，几档由服务层管 */
+  setAutoLockTimeoutMs(ms: number): void { /* 非有限或负数抛 TypeError */ this.timeoutMs = ms; }
+
+  /** 设置改了之后通知其他面板。收到的面板不会被锁定 */
+  announceSettingsChanged(): void { this.channel.postMessage({ type: 'settings-changed' }); }
+  /** 收到其他面板的"设置变了"时回调，返回取消监听的函数 */
+  onSettingsChanged(cb: () => void): () => void { this.settingsListeners.add(cb); return () => this.settingsListeners.delete(cb); }
+
+  /** 定时器、visibilitychange 都调这个，对比 Date.now() 而不是依赖 setTimeout 精度。必须同步 */
   checkIdle(): void {
-    const t = this.getTimeoutMs();
+    const t = this.getAutoLockTimeoutMs();
     if (this.key && t > 0 && Date.now() - this.lastActivity >= t) this.lock();
   }
 
@@ -441,12 +456,24 @@ class VaultSession {
 
 - `lock()` 与 `lockLocal()` 分开。`onmessage` 只调 `lockLocal()`。
 - `wrapper-changed` 和 `imported` 有明确的发送方：改主密码、Recovery 两步、重新生成 Recovery Key、KDF 重包装提交后发 `wrapper-changed`；覆盖导入提交后发 `imported`。收到的实例全部本地锁定。
+- **广播分两类，不能混**：上面这些（连同 `lock`）是**锁定类**，收到就 `lockLocal()`；`settings-changed` 是**设置类**，收到只通知监听者重新读设置，**不锁定**。如果把它误放进锁定类，用户改一下自动锁定时间就会把所有面板锁掉；有测试专门守这一点。
+- 上面的代码块是示意，与实现有出入（例如 `open` 还有 `expectedEpoch` 参数、另有 `isOpen`、`startIdleWatch` 等），**以 `src/vault/services/vault-session.ts` 为准**。
 - `unlock` 不叫 `unlock()`，叫 `open(key, keyId)`。服务层只调这一个入口。
 - Session 里不放解密后的记录，没有 `decryptedRecords` Map。
 
 ### 4.3 自动锁定
 
-- 超时来自 `vaultSettings.autoLockTimeoutMs`，通过 `getTimeoutMs` 读取，不写死。可选 1 / 5（默认）/ 15 分钟 / Never。
+- 超时来自 `vaultSettings.autoLockTimeoutMs`，不写死。可选 1 / 5（默认）/ 15 分钟 / Never（存成 0）。
+- **谁读、什么时候读**：设置存在 IndexedDB 里是异步的，而 `checkIdle()` 必须同步，所以 Session 里缓存一个内存值，由 `VaultService` 推进来：
+  - `initialize` 提交后把默认值推给 Session；
+  - `unlockWithMasterPassword`、`unlockWithRecoveryKey`、`recoverAccess` 在**拿到原始密钥字节之前**先读设置（`recoverAccess` 是在提交之前，免得提交之后多出一个可能失败的读库）；
+  - `setAutoLockTimeout(ms)` 写库成功之后才更新本面板的 Session（写失败时内存和库一致），再通知其他面板；
+  - 收到其他面板的 `settings-changed` 后重新读库。
+- **读不出来怎么办**，两条路径故意不同：
+  - 解锁、恢复时读失败，或库里的值缺失、不在可选范围内：用默认值，**不能因为读不出一个设置就让用户进不了自己的保险箱**。
+  - 收到其他面板通知后刷新时读失败：**保持当前值**，不能因为一次读库失败就把用户选的 1 分钟悄悄改回 5 分钟。
+- 改设置必须已解锁，值必须是上面四档之一（否则 `TypeError`），不要求重新输入主密码（不涉及密钥）。改设置算一次有效活动，会刷新计时。
+- 多个面板同时改时，各面板最终都以库里的值为准（每次通知都会触发一次重读）。
 - 用 `lastActivity` 加每 10 秒一次的 `checkIdle()` 轮询，不依赖单个长 `setTimeout`（系统休眠时计时可能不推进）。
 - `visibilitychange` 变为 `visible` 时立即调一次 `checkIdle()`。回调里**不能直接 `await`**，只调同步的 `checkIdle()`，超时值由 Session 缓存。
 - 有效活动：`keydown`、`pointerdown`、Vault 内的查看/编辑操作。单纯渲染、轮询、自动刷新不调 `touch()`。
@@ -577,6 +604,10 @@ export class VaultService {
   async createRecord(input: VaultRecordInput): Promise<string>;
   async updateRecord(id: string, input: VaultRecordInput): Promise<void>;   // 保留 createdAt；不存在抛 NotFoundError
   async deleteRecord(id: string): Promise<void>;
+
+  // —— 自动锁定设置，见 §4.3 ——
+  async getAutoLockTimeout(): Promise<AutoLockTimeoutMs>;          // 不要求已解锁；缺失/非法按默认值；读库失败会抛
+  async setAutoLockTimeout(ms: AutoLockTimeoutMs): Promise<void>;  // 必须已解锁；非法值 TypeError；本面板立即生效，其他面板收到通知后重读，不会被锁定
 }
 ```
 
@@ -768,7 +799,7 @@ function VaultGuard() {
 - [x] 测试：`wrapper-changed`、`imported` 广播会让其他实例锁定
 - [x] 测试：在途 `getRecord` 在 `await` 之间被锁定，结果被丢弃并抛 `VaultLockedError`（Session 层的 `assertEpoch` 测试，和 `vault-service-records.test.ts` 里的服务层测试）
 - [x] 自动锁定：`checkIdle` + 轮询 + `visibilitychange`；用假时钟测试休眠场景
-- [ ] 自动锁定的超时值取自 `vaultSettings.autoLockTimeoutMs`。**还没接上**：Session 只有 `getTimeoutMs` 注入口，默认 5 分钟；`VaultService` 目前只在初始化时写入默认设置，没有读取或修改设置的方法，也没有人把设置接到 Session 上。Task 4.2 的"自动锁定超时设置"依赖这一条
+- [x] 自动锁定的超时值取自 `vaultSettings.autoLockTimeoutMs`（`tests/vault/vault-service-settings.test.ts` 与 `vault-session.test.ts`）。Session 缓存内存值，服务层在初始化、两种解锁、`recoverAccess` 时推进去；`getAutoLockTimeout` / `setAutoLockTimeout`；改设置用 `settings-changed` 通知其他面板，不锁定它们。读失败的两条路径不同（解锁用默认值，刷新保持当前值），见 §4.3。Task 4.2 的设置页只差 UI
 
 ### Phase 2: 核心功能（44–56h）
 
@@ -847,7 +878,7 @@ function VaultGuard() {
 
 **Task 4.2: 设置（16–22h）**
 - [ ] 修改主密码
-- [ ] 自动锁定超时（1 / 5 / 15 分钟 / Never），文案说明"关闭面板即锁定"
+- [ ] 自动锁定超时（1 / 5 / 15 分钟 / Never），文案说明"关闭面板即锁定"（服务层已就绪：`getAutoLockTimeout` / `setAutoLockTimeout`，缺的是设置页的 UI。四档的取值用 `AUTO_LOCK_TIMEOUT_OPTIONS`，不要在 UI 里再写一份）
 - [ ] 重新生成 Recovery Key（入口在 2.3 已做）
 - [ ] 导出前重新输入主密码（`verifyMasterPassword`）；提示"备份文件的安全性取决于主密码强度"
 - [ ] 不提供"选择 KDF"的选项，由产品定默认值并自动升级
@@ -1374,15 +1405,15 @@ test('Vault 备份：app 不等于 riddle-notes-vault 被拒绝', async () => { 
 ## 14. 开工顺序与待决策
 
 ### 进度与下一步
-**已完成**：Task 1.1 `RiddleVaultDB`、1.2 `CryptoService`、1.3 `VaultSession`、2.1 `VaultService`（含主密码强度策略）。
+**已完成**：Task 1.1 `RiddleVaultDB`、1.2 `CryptoService`、1.3 `VaultSession`（含自动锁定超时取自设置）、2.1 `VaultService`（含主密码强度策略）。
 
 **部分完成**：Task 1.0。Argon2id 的 Node 基准和 manifest 构建试验做了（结果在 §7 Task 1.0），Side Panel 生命周期和低端机实测没做。
 
 **下一步**（按依赖排序）：
 1. **Task 1.0 剩下的部分**：在真实 Chrome 里验证 Side Panel 关闭是否销毁页面（§4.1 的假设至今没实测）；低端机上跑 `scripts/spike-argon2id-bench.mjs`；在 Chrome 的 Worker 里验证 hash-wasm 能否在 `'wasm-unsafe-eval'` 下实例化。结果会改动 §4.1 和 §1.2。
-2. **自动锁定超时接到设置**（Task 1.3 最后一条）：服务层需要读写 `vaultSettings` 的方法，并把 `getTimeoutMs` 接到 Session。Task 4.2 依赖它。
-3. Task 2.2 / 2.3 剩下的服务层部分（`verifyRecoveryKey`、SW 隔离的守卫测试）。
-4. Phase 3 UI，Phase 4 备份，按 §7 推进。
+2. Task 2.2 / 2.3 剩下的服务层部分（`verifyRecoveryKey`、SW 隔离的守卫测试）。
+3. Phase 3 UI，Phase 4 备份，按 §7 推进。UI 要注意的接口：强度指示器用 `evaluatePassword()`（§5.4）；自动锁定设置页用 `getAutoLockTimeout()` / `setAutoLockTimeout()`，四档取自 `AUTO_LOCK_TIMEOUT_OPTIONS`（§4.3）。
+4. 生产代码里还没有任何地方创建 `VaultSession` 和 `VaultService`（只有测试在创建）。接 UI 时要有一个"组合根"：先建 Session，再建 Service，调用 `session.startIdleWatch()` 和 `trackActivity(session)`，并在页面卸载时 `dispose()`。
 
 ### 待决策
 - [ ] **KDF**：Argon2id 还是 PBKDF2 600k + 自动升级（由 Task 1.0 实测结果决定）。Node 数据倾向 hash-wasm + Worker，但低端机数据没有
@@ -1390,6 +1421,7 @@ test('Vault 备份：app 不等于 riddle-notes-vault 被拒绝', async () => { 
 - [ ] **密码生成器**：延后到 P1（已同意）
 
 ### 修订记录
+- **v1.2 状态同步（二）**：Task 1.3 最后一条已完成并勾选：自动锁定超时取自 `vaultSettings`（§4.2、§4.3、§5.2 同步补入 `settings-changed` 广播、Session 的超时缓存、`get/setAutoLockTimeout`，以及"解锁读失败用默认值、刷新读失败保持当前值"的取舍）；§4.2 的 Session 示意代码仍与实现有出入，已注明以代码为准；测试计数更新为 10 个文件、455 个用例；§14 的"下一步"去掉已完成的一项。
 - **v1.2 状态同步**（版本号不变，内容未重新评审）：§7 的复选框按代码和测试勾选，没有测试对应的不勾，并写明缺什么；状态行和附录 C 里"没有任何 Vault 代码"的说法更正；新增 §5.4 主密码强度策略，强制执行放在服务层，§6.2、Task 3.1 随之改成"UI 只展示"；§5.1、§2.2、§9.1 里 `generateRecoveryKey` / `parseRecoveryKey` 更正为异步并补上 `formatRecoveryKey`；Task 1.0 补入 Node 基准结果与 manifest 构建试验。§12、§13 没有动。
 - **v1.2**：按第二轮评审重写 §2–§9、§11–§14。主要改动：HKDF usages 改为 `encrypt/decrypt`；乐观锁真正落地（`expectedRevision` 与 `keyId`）；`lock()` 与 `lockLocal()` 分离；Recovery 拆成 `recoverAccess` 与 `rotateRecoveryKey`；Session 统一入口 `open()` 与 `extractable:false`；路由守卫修复；错误分类改为三类；Recovery Key 规范与测试向量定稿；AAD、IV 长度校验、字节清零写入 Task 1.2；`vaultSnapshot` 并入 v1；Argon2id spike 前移到 Task 1.0；§9 测试全部对齐新接口。
 - **v1.1**：第一轮评审后的修订。
