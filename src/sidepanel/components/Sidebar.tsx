@@ -11,6 +11,7 @@ import {
   ChevronRight,
   ChevronDown,
   FileText,
+  Lock,
 } from 'lucide-react';
 import { db, Folder } from '@db/schema';
 
@@ -154,6 +155,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange }) => {
 
       {/* Footer */}
       <div className="p-3 border-t border-line bg-aged/20">
+        {/* 保险箱和笔记是两个独立的区域:进入时让笔记的导航项不再高亮 */}
+        <button
+          onClick={() => {
+            onViewChange('vault');
+            navigate('/vault');
+          }}
+          className={`nav-item ${currentView === 'vault' || location.pathname.startsWith('/vault') ? 'nav-item-active' : ''}`}
+        >
+          <Lock className="w-4 h-4" />
+          <span className="text-sm">保险箱</span>
+        </button>
         <button
           onClick={() => navigate('/settings')}
           className="nav-item"
