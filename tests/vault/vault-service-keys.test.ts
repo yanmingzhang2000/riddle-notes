@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
   AuthError,
   ConflictError,
+  CorruptError,
   NotInitializedError,
   RecoveryKeyChecksumError,
   RecoveryKeyFormatError,
@@ -16,6 +17,7 @@ import {
   isZeroed,
   sleep,
   snapshotVault,
+  tamperKeys,
   toHex,
   trackKeyMaterial,
   type TestVault,
@@ -576,5 +578,99 @@ describe('Recovery 步骤二:rotateRecoveryKey', () => {
     await expect(vault.service.rotateRecoveryKey(PASSWORD, async () => {})).rejects.toBeInstanceOf(
       NotInitializedError
     );
+  });
+});
+
+describe('isRecoveryRotationRequired', () => {
+  test('新初始化的保险箱:不需要', async () => {
+    const vault = await createInitializedVault();
+
+    expect(await vault.service.isRecoveryRotationRequired()).toBe(false);
+  });
+
+  test('用 Recovery Key 找回访问之后:需要', async () => {
+    const vault = await createInitializedVault();
+    vault.session.lock();
+
+    await vault.service.recoverAccess(vault.recoveryKey, NEW_PASSWORD);
+
+    expect(await vault.service.isRecoveryRotationRequired()).toBe(true);
+  });
+
+  test('步骤二回调取消:仍然需要', async () => {
+    const vault = await createInitializedVault();
+    vault.session.lock();
+    await vault.service.recoverAccess(vault.recoveryKey, NEW_PASSWORD);
+
+    await expect(
+      vault.service.rotateRecoveryKey(NEW_PASSWORD, async () => {
+        throw new Error('cancel');
+      })
+    ).rejects.toThrow('cancel');
+
+    expect(await vault.service.isRecoveryRotationRequired()).toBe(true);
+  });
+
+  test('重新生成 Recovery Key 完成之后:不再需要', async () => {
+    const vault = await createInitializedVault();
+    vault.session.lock();
+    await vault.service.recoverAccess(vault.recoveryKey, NEW_PASSWORD);
+
+    await vault.service.rotateRecoveryKey(NEW_PASSWORD, async () => {});
+
+    expect(await vault.service.isRecoveryRotationRequired()).toBe(false);
+  });
+
+  test('不要求已解锁(这个标记不是秘密)', async () => {
+    const vault = await createInitializedVault();
+    vault.session.lock();
+    await vault.service.recoverAccess(vault.recoveryKey, NEW_PASSWORD);
+    vault.session.lock();
+
+    expect(vault.session.isOpen()).toBe(false);
+    expect(await vault.service.isRecoveryRotationRequired()).toBe(true);
+  });
+
+  test('只读:不写库、不碰 Session、不广播', async () => {
+    const { a, b } = await twoPanels();
+    const before = await snapshotVault(a.db);
+    const epochA = a.session.getEpoch();
+    const epochB = b.session.getEpoch();
+
+    await a.service.isRecoveryRotationRequired();
+
+    expect(await snapshotVault(a.db)).toEqual(before);
+    expect(a.session.getEpoch()).toBe(epochA);
+    await expectStillOpen(b);
+    expect(b.session.getEpoch()).toBe(epochB);
+  });
+
+  test('还没有初始化:抛 NotInitializedError', async () => {
+    const vault = createTestVault();
+
+    await expect(vault.service.isRecoveryRotationRequired()).rejects.toBeInstanceOf(NotInitializedError);
+  });
+
+  test('wrapper 结构损坏:抛 CorruptError,不当成"不需要"', async () => {
+    const vault = await createInitializedVault();
+    await tamperKeys(vault.db, keys => {
+      (keys as unknown as { wrapper: unknown }).wrapper = undefined;
+    });
+
+    await expect(vault.service.isRecoveryRotationRequired()).rejects.toBeInstanceOf(CorruptError);
+  });
+
+  test.each([
+    ['字段缺失', undefined],
+    ['字符串 "false"', 'false'],
+    ['数字 0', 0],
+    ['null', null],
+  ])('标记不是明确的 false(%s):按"需要"处理,多提醒一次无害', async (_name, value) => {
+    const vault = await createInitializedVault();
+    await tamperKeys(vault.db, keys => {
+      (keys as unknown as { recoveryRotationRequired: unknown }).recoveryRotationRequired = value;
+    });
+
+    expect(await vault.service.isRecoveryRotationRequired()).toBe(true);
   });
 });

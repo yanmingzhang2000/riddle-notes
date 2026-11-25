@@ -212,6 +212,21 @@ export class VaultService {
     wipe(raw);
   }
 
+  /**
+   * 只验证 Recovery Key 能不能解开保险箱,不碰 Session、不写库。
+   * 给"Test Recovery Key"用:用户随时可以确认自己抄下来的那份还是对的,
+   * 而不用等到真的忘了主密码那天才发现抄错了。
+   * 与 unlockWithRecoveryKey 的区别:它会打开会话,这个不会。
+   *
+   * 错误分类与 unlockWithRecoveryKey 一致(见 §5.3):格式或校验和不对是输入有误,
+   * 通过检查但解不开是 AuthError,库里的结构不对是 CorruptError。
+   */
+  async verifyRecoveryKey(input: string): Promise<void> {
+    const keys = await this.loadKeys();
+    const raw = await this.unwrapWithRecovery(keys, input);
+    wipe(raw);
+  }
+
   // —— 改主密码 ————————————————————————————————————————
 
   async changeMasterPassword(current: string, next: string): Promise<void> {
@@ -281,6 +296,19 @@ export class VaultService {
       recoveryRotationRequired: false,
       wrapper: { ...current.wrapper, recovery: wrapped },
     }));
+  }
+
+  /**
+   * 是否还需要重新生成 Recovery Key(用 Recovery Key 找回访问之后为 true,重新生成之后为 false)。
+   * Settings 用它显示那条不能被关掉的提示。
+   *
+   * 这个标记不是秘密,所以不要求已解锁。库里没有记录抛 NotInitializedError,结构损坏抛 CorruptError。
+   * 标记不是明确的 false(缺失、被改成别的类型)时按"需要"返回:多提醒一次无害,
+   * 漏提醒会让用户继续依赖一把可能已经泄漏的旧 Recovery Key。
+   */
+  async isRecoveryRotationRequired(): Promise<boolean> {
+    const keys = await this.loadKeys();
+    return keys.recoveryRotationRequired !== false;
   }
 
   // —— 记录 CRUD ———————————————————————————————————————

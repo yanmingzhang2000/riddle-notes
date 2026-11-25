@@ -597,6 +597,133 @@ describe('verifyMasterPassword', () => {
   });
 });
 
+describe('verifyRecoveryKey("Test Recovery Key":只验证,不解锁)', () => {
+  test('正确的 Recovery Key 通过', async () => {
+    const vault = await createInitializedVault();
+    await expect(vault.service.verifyRecoveryKey(vault.recoveryKey)).resolves.toBeUndefined();
+  });
+
+  test('小写、空格分隔也能通过(与 unlockWithRecoveryKey 的规范化一致)', async () => {
+    const vault = await createInitializedVault();
+    const sloppy = vault.recoveryKey.toLowerCase().replace(/-/g, ' ');
+    await expect(vault.service.verifyRecoveryKey(`  ${sloppy}\n`)).resolves.toBeUndefined();
+  });
+
+  test('格式错误抛 RecoveryKeyFormatError', async () => {
+    const vault = await createInitializedVault();
+    await expect(vault.service.verifyRecoveryKey('not a recovery key')).rejects.toBeInstanceOf(
+      RecoveryKeyFormatError
+    );
+    await expect(vault.service.verifyRecoveryKey('')).rejects.toBeInstanceOf(RecoveryKeyFormatError);
+  });
+
+  test('输错一个字符抛 RecoveryKeyChecksumError:用户能知道是抄错了,而不是 Key 不对', async () => {
+    const vault = await createInitializedVault();
+    const chars = vault.recoveryKey.split('');
+    const i = chars.findIndex((c, idx) => idx > 8 && /[A-Z]/.test(c));
+    chars[i] = chars[i] === 'A' ? 'B' : 'A';
+
+    await expect(vault.service.verifyRecoveryKey(chars.join(''))).rejects.toBeInstanceOf(
+      RecoveryKeyChecksumError
+    );
+  });
+
+  test('格式与校验和都对、但不是这个保险箱的 Key:AuthError', async () => {
+    const vault = await createInitializedVault();
+    const other = await vault.crypto.generateRecoveryKey();
+    await expect(vault.service.verifyRecoveryKey(other.formatted)).rejects.toBeInstanceOf(AuthError);
+  });
+
+  test('保险箱还没创建:NotInitializedError', async () => {
+    const vault = createTestVault();
+    await expect(vault.service.verifyRecoveryKey('whatever')).rejects.toBeInstanceOf(NotInitializedError);
+  });
+
+  test('库里的 wrapper 被截断:CorruptError,不是 TypeError', async () => {
+    const vault = await createInitializedVault();
+    await tamperKeys(vault.db, k => (k.wrapper.recovery.wrappedKey = k.wrapper.recovery.wrappedKey.slice(0, 10)));
+    await expect(vault.service.verifyRecoveryKey(vault.recoveryKey)).rejects.toBeInstanceOf(CorruptError);
+  });
+
+  test('不碰 Session:epoch 不变、不通知订阅者,成功和失败都一样', async () => {
+    const vault = await createInitializedVault();
+    const epoch = vault.session.getEpoch();
+    const subscriber = vi.fn();
+    vault.session.subscribe(subscriber);
+    const other = await vault.crypto.generateRecoveryKey();
+
+    await vault.service.verifyRecoveryKey(vault.recoveryKey);
+    await expect(vault.service.verifyRecoveryKey(other.formatted)).rejects.toBeInstanceOf(AuthError);
+
+    expect(vault.session.getEpoch()).toBe(epoch);
+    expect(subscriber).not.toHaveBeenCalled();
+    expect(vault.session.isOpen()).toBe(true);
+  });
+
+  test('与 unlockWithRecoveryKey 的区别:会话关闭时验证成功也不会把它打开', async () => {
+    const vault = await createInitializedVault();
+    vault.session.lock();
+    const epoch = vault.session.getEpoch();
+
+    await vault.service.verifyRecoveryKey(vault.recoveryKey);
+
+    expect(vault.session.isOpen()).toBe(false);
+    expect(vault.session.getEpoch()).toBe(epoch);
+  });
+
+  test('不写库:包括 revision、recoveryRotationRequired、设置', async () => {
+    const vault = await createInitializedVault();
+    const before = await snapshotVault(vault.db);
+
+    await vault.service.verifyRecoveryKey(vault.recoveryKey);
+
+    expect(await snapshotVault(vault.db)).toEqual(before);
+  });
+
+  test('不会让别的面板被锁定(不广播)', async () => {
+    const a = await createInitializedVault();
+    const b = createTestVault({ peerOf: a });
+    await b.service.unlockWithMasterPassword(PASSWORD);
+
+    await a.service.verifyRecoveryKey(a.recoveryKey);
+    await sleep(100);
+
+    expect(b.session.isOpen()).toBe(true);
+  });
+
+  test('解出的原始字节与解析出的 Recovery Key 字节都已清零,失败的路径也一样', async () => {
+    const vault = await createInitializedVault();
+    const tracked = trackKeyMaterial(vault.crypto);
+    const other = await vault.crypto.generateRecoveryKey();
+
+    await vault.service.verifyRecoveryKey(vault.recoveryKey);
+    await expect(vault.service.verifyRecoveryKey(other.formatted)).rejects.toBeInstanceOf(AuthError);
+
+    expect(tracked.length).toBeGreaterThan(0);
+    // other.bytes 是测试自己生成的,不在被检查的范围内
+    expect(tracked.filter(b => b !== other.bytes && !isZeroed(b))).toEqual([]);
+  });
+
+  test('错误对象不带 Recovery Key 的内容', async () => {
+    const vault = await createInitializedVault();
+    const other = await vault.crypto.generateRecoveryKey();
+    const error = await vault.service.verifyRecoveryKey(other.formatted).catch(e => e as Error);
+
+    expect(JSON.stringify({ name: error.name, message: error.message })).not.toContain(other.formatted);
+  });
+
+  test('轮换之后:旧的 Recovery Key 验证失败,新的通过(用户抄新的之后可以立即确认)', async () => {
+    const vault = await createInitializedVault();
+    let newKey = '';
+    await vault.service.rotateRecoveryKey(PASSWORD, async formatted => {
+      newKey = formatted;
+    });
+
+    await vault.service.verifyRecoveryKey(newKey);
+    await expect(vault.service.verifyRecoveryKey(vault.recoveryKey)).rejects.toBeInstanceOf(AuthError);
+  });
+});
+
 describe('KDF 自动升级', () => {
   /** 用较弱的参数(500)建库,再用要求 1000 的策略去解锁 */
   async function weakVault() {
