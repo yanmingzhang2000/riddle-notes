@@ -1,10 +1,10 @@
 # Riddle Notes Secure Vault — 技术架构方案
 
 **版本**: 1.2  
-**状态**: 评审中。Task 1.1–1.3 与 2.1（含主密码强度策略）已实现并有测试；Task 1.0 的两个 spike 只完成了 Node 侧，Side Panel 生命周期与低端机实测还没做；UI（Phase 3）、备份（Phase 4）未开始。进度以 §7 的勾选为准。  
+**状态**: 评审中。Task 1.1–1.3、2.1（含主密码强度策略）、2.3、Phase 3 UI 的主体、Task 4.2 的设置页已实现并有 jsdom 测试；Task 1.0 的两个 spike 只完成了 Node 侧；备份（Phase 4.1）未开始。**所有 UI 都没有在真实 Chrome 里渲染或点过一次**，下面这些只有在真实 Chrome 里才能确认，见 §14：Side Panel 关闭是否销毁页面（R4）、浏览器会不会弹"保存密码"、页面实际长什么样、低端机上的 KDF 耗时。进度以 §7 的勾选为准。  
 **范围**: 加密机制、密钥管理、数据存储、运行时安全、开发计划
 
-> 本文档是设计。实现在 `src/vault/` 与 `src/db/vault-schema.ts`，测试在 `tests/vault/`（10 个文件、455 个用例，全部通过）。文中代码块是接口与流程示意，不是可直接运行的实现；**与代码不一致时以代码和测试为准**。产品需求见对话中的 PRD，仓库里尚无 `vault-prd.md`。
+> 本文档是设计。实现在 `src/vault/` 与 `src/db/vault-schema.ts`，测试在 `tests/vault/`（22 个文件、941 个用例，全部通过）。仓库全量测试另有 64 个失败，分布在 6 个与保险箱无关的文件里（chatgpt、claude、deepseek、gemini、update-service、workbuddy 的集成测试），在保险箱的改动开始之前就存在，没有新增。文中代码块是接口与流程示意，不是可直接运行的实现；**与代码不一致时以代码和测试为准**。产品需求见对话中的 PRD，仓库里尚无 `vault-prd.md`。
 
 ## 目录
 
@@ -485,16 +485,25 @@ class VaultSession {
 
 1. Session 清空 key 和 keyId，`epoch++`。
 2. **在途异步失效**：每个服务方法开头 `const { key, epoch } = session.requireKey()`，每次 `await` 之后 `session.assertEpoch(epoch)`，不一致就丢弃结果并抛错。否则 `getRecord` 在 `await` 之间被锁定，仍会把明文返回给 UI。
-3. **UI 同步卸载**：见 §6.3，`VaultShell` 订阅 epoch，给 `<Outlet key={epoch}>`，锁定时整个 Vault 子树重建。
-4. **明文只存在于一处**：解密结果放在 Session 持有的单个 store 里，组件用 `useSyncExternalStore` 订阅，不在各自的 `useState` 里存副本。`SecretField` 的 `<input value>` 会把明文放进 DOM 节点，改成显示时才渲染文本节点，隐藏时渲染固定的 `••••••••`。
+3. **UI 同步卸载**：见 §6.3，`VaultGuard` 在已解锁分支里给 `<Outlet key={epoch}>`，锁定时整个 Vault 子树重建。`tests/vault/vault-routing.test.tsx` 验证了编辑页里输入到一半的秘密、详情页已展开的明文、搜索词在锁定后都不在页面上，也验证了"锁定和重新解锁发生在同一次渲染之间"这种状态始终是 `unlocked` 的情况。
+4. **明文只存在于一处**：解密结果放在独立的 `VaultStore`（`src/vault/services/vault-store.ts`）里，不放在 Session 里（Session 不持有解密后的记录，见 §4.2）。`VaultStore` 在构造时订阅 Session，所以排在所有 React 组件的订阅前面：锁定时先于它们**同步清空**，组件重新渲染时读到的已经是空的。组件用 `useSyncExternalStore` 订阅，不在各自的 `useState` 里存副本。在途请求有两道防线：返回时对比开始时的 epoch，以及请求序号（连点两条记录时先发出的后返回不会盖掉后发出的）。`SecretField` 的 `<input value>` 会把明文放进 DOM 节点，改成显示时才渲染文本节点，隐藏时渲染固定的 `••••••••`。
+   - **一个绕不开的例外**：编辑页要改内容，表单里必须有一份明文。做法是读出来填进表单之后立刻清掉 `VaultStore` 里的那一份，让同一时刻内存里只留一份；锁定时靠第 3 条把整个页面卸载来销毁表单 state，没保存的修改会丢。
+   - **保证的范围**：目标是"锁定后 DOM 与组件 state 里没有"。JS 字符串无法清零，**不承诺内存取证安全**；堆快照检查（Task 5.1）没有做。
 5. 搜索关键词只放组件 state，卸载即清除，不进 URL，不进表单历史。
 6. 剪贴板：见 §4.5。
 
 ### 4.5 剪贴板（尽力而为）
 
-复制秘密时在内存里记 `lastCopiedSecret`。锁定时尝试 `readText()`，若仍等于它就写入空串。
+原设计：复制秘密时在内存里记 `lastCopiedSecret`，锁定时尝试 `readText()`，若仍等于它就写入空串。
 
-**这只能尽力而为，不作为验收项**：`readText()` 需要 `clipboardRead` 权限或文档焦点，manifest 里没有这个权限，自动锁定触发时面板通常没有焦点，会静默失败。UI 只在复制时提示"已复制，请注意及时清除剪贴板"。"复制后 N 秒自动清除"也同样不可靠（面板关闭后定时器不再触发），本期不做。
+**实现时偏离了这个设计，没有记 `lastCopiedSecret`，等待决定**。理由有三：
+1. 记在模块变量里的明文在锁定之后还留在内存里，和"锁定后不留明文"（§4.4）矛盾；要避免这一点就得再给它加一套锁定时清除的机制；
+2. 它唯一的用途是锁定时和剪贴板内容比对，而 `readText()` 需要 `clipboardRead` 权限（manifest 里没有），自动锁定触发时面板通常没有焦点，会静默失败，所以这个比对在大多数情况下根本执行不了；
+3. 不比对就盲目写入空串，会冲掉用户之后复制的别的东西。
+
+现状：`SecretField` 复制成功后提示"已复制，请注意及时清除剪贴板"（有测试），这是本节原来就规定的 UI 行为。**不做**自动清除，也不记录复制过什么。如果仍然想要尽力清除，需要先决定要不要加 `clipboardRead` 权限，见 §11.4。
+
+这只能尽力而为，不作为验收项。"复制后 N 秒自动清除"同样不可靠（面板关闭后定时器不再触发），本期不做。
 
 ### 4.6 密钥材料处理
 
@@ -582,6 +591,9 @@ export class VaultService {
   // —— 不碰 Session 的验证 ——
   // 改主密码、重新生成 Recovery Key、导出前重新验证都用它。不 epoch++，不重建 UI。
   async verifyMasterPassword(password: string): Promise<void>;
+  // "Test Recovery Key"用:只验证,不碰 Session、不写库、不广播,用完清零。
+  // 格式不对抛 RecoveryKeyFormatError / RecoveryKeyChecksumError,解不开抛 AuthError,库里结构不对抛 CorruptError。
+  async verifyRecoveryKey(input: string): Promise<void>;
 
   // —— 改主密码 ——
   async changeMasterPassword(current: string, next: string): Promise<void>;
@@ -597,6 +609,10 @@ export class VaultService {
     masterPassword: string,
     onRecoveryKey: (formatted: string) => Promise<void>
   ): Promise<void>;                                                // 步骤二，也是 Settings 里"重新生成"的入口
+  // 是否还需要重新生成 Recovery Key,UI 的持续提醒用它。不要求已解锁(标记不是秘密)。
+  // 未初始化抛 NotInitializedError;结构损坏抛 CorruptError;标记不是明确的 false(缺失、被改成别的类型)时按"需要"返回:
+  // 多提醒一次无害,漏提醒会让用户继续依赖一把可能已经泄漏的旧 Recovery Key。
+  async isRecoveryRotationRequired(): Promise<boolean>;
 
   // —— 记录 CRUD ——
   async listSummaries(filter?: { type?: VaultRecordType }): Promise<VaultSummary[]>;
@@ -626,6 +642,10 @@ AES-GCM 在密钥错误和密文被篡改时抛的是同一种认证失败，无
 | 认证失败 `AuthError` | 主密码或 Recovery Key 通过格式检查，但解开 wrapper 失败 | "密码错误，或数据已损坏。可尝试使用恢复密钥" |
 
 不再承诺"区分密码错误和数据损坏"。错误对象只带类别，不带任何字段内容；Vault 相关错误不得经 Service Worker 消息原样回传。
+
+**文案的实现**（`src/vault/error-messages.ts` 的 `describeVaultError`）：只按错误的类别选文案，**永远不显示 `error.message`**，未知错误一律显示"操作失败，请重试"。同一个认证失败在三种语境里措辞不同：输入主密码时是上表的措辞；输入恢复密钥时说"恢复密钥不正确，或数据已损坏"（本来就在输入恢复密钥，不再建议"使用恢复密钥"）；**读取某一条记录**时说"这条记录无法解密，数据可能已损坏"（用户没有输入任何密码，说"密码错误"会误导他）。
+
+**一处文案与现状不符**：上表"结构损坏"的提示"可导出原始加密备份"提到的导出功能（Task 4.1）**还没有实现**。文案按本节原有规定写进了界面，在备份做出来之前，用户看到这句话时没有对应的按钮可点。
 
 以上三类是**解锁和验证**时的分类。设置新主密码时另有 `WeakPasswordError`（`kind: 'weak-password'`），见 §5.4。
 
@@ -668,15 +688,26 @@ new VaultService({ session, passwordPolicy? });   // 不传 = DEFAULT_PASSWORD_P
 
 ### 6.1 目录结构
 
+实际的目录（比最初的设计多出组合根、明文 store 和几个共用组件）：
+
 ```
 src/vault/
 ├── crypto/        crypto-service.ts, recovery-key.ts, errors.ts
-├── services/      vault-service.ts, vault-session.ts
-├── pages/         VaultSetup, VaultUnlock, VaultRecover, VaultList, VaultDetail, VaultEditor, VaultSettings
-├── components/    RecoveryKeyDisplay, RecoveryKeyConfirm, PasswordStrength, SecretField, VaultBadge
-└── hooks/         useVaultStatus.ts, useVaultSession.ts
+├── services/      vault-service.ts, vault-session.ts, vault-store.ts（解密后的明文只放在这里）, password-policy.ts
+├── runtime.ts     组合根：建 Session / Service / Store，start() 开空闲检查、活动追踪、pagehide 兜底
+├── routes.tsx     vaultRoutes：一个 <Route path="/vault"> 元素，接进 App 的 <Routes>
+├── error-messages.ts   describeVaultError：按类别选文案，不显示 error.message
+├── pages/         VaultSetup, VaultUnlock, VaultRecover, VaultGuard, VaultList, VaultDetail, VaultEditor, VaultSettings,
+│                  return-path.ts, list-model.ts, editor-model.ts, format.ts（后三个是可单独测试的纯逻辑）
+├── components/    RecoveryKeyDisplay, RecoveryKeyConfirm, RecoveryKeyRotation, PasswordStrength, SecretField, VaultBadge,
+│                  VaultPage, AutoLockSetting, ChangeMasterPassword, RecoveryKeySettings,
+│                  record-types.ts, recovery-key-groups.ts, recovery-key-file.ts
+└── hooks/         VaultRuntimeProvider.tsx, useVaultStatus, useVaultSession, useVaultStore,
+                   useRecoveryRotationRequired, useRecoveryKeyCeremony
 src/db/vault-schema.ts
 ```
+
+**`VaultRuntimeProvider` 必须包住整个 App**（见 `src/sidepanel/App.tsx`），而不是只包 `/vault` 路由：用户解锁后切到笔记页，自动锁定的空闲检查和活动追踪仍要继续运行。`tests/vault/vault-app-integration.test.tsx` 验证了在笔记页面上的按键也会被计为活动。
 
 ### 6.2 交互要点
 
@@ -698,7 +729,7 @@ src/db/vault-schema.ts
 <Routes>
   {/* 现有路由略 */}
 
-  <Route path="/vault" element={<VaultShell />}>
+  <Route path="/vault">
     {/* 守卫之外：任何状态都能访问 */}
     <Route path="setup" element={<VaultSetup />} />
     <Route path="unlock" element={<VaultUnlock />} />
@@ -716,26 +747,29 @@ src/db/vault-schema.ts
 </Routes>
 ```
 
-两个组件职责分开，不重复：
+**实现与上面的最初设计有三处不同**（`src/vault/pages/VaultGuard.tsx`）：
+
+1. **没有单独的 `VaultShell`**。原设计让它负责"锁定时整棵子树重建"，但 `setup` / `unlock` / `recover` 在守卫外面，也被它包着的话，`open()` 或另一个窗口的锁定会让这三个向导页白白重建。重建只需要对**已解锁**的页面做，所以 `key={epoch}` 放在 `VaultGuard` 已解锁分支的 `<Outlet>` 上；`/vault` 本身是一个没有 `element` 的路由（React Router 默认渲染 `<Outlet>`），单独做 `VaultShell` 只会是个空壳。
+2. **状态有五个而不是四个**：`'loading' | 'uninitialized' | 'locked' | 'unlocked' | 'error'`。读库本身失败**不能**当成 `uninitialized`：那会把已经创建过保险箱的用户带去创建页。`error` 时显示错误和"重试"，不跳转。
+3. **被踢去解锁页时带上原路径**：`<Navigate to="/vault/unlock" state={{ from: location.pathname }}>`，解锁成功后回到刚才的页面。路由状态理论上可以被构造，所以 `vaultReturnPath` 只接受 `/vault` 之内的路径，并且不回到 `setup` / `unlock` / `recover`（会循环）。
 
 ```tsx
-// VaultShell：只负责"锁定时整棵子树重建"。订阅 epoch，不做任何路由判断。
-function VaultShell() {
-  const epoch = useSyncExternalStore(session.subscribe, session.getEpoch);
-  return <Outlet key={epoch} />;
-}
-
-// VaultGuard：只负责路由判断。
 function VaultGuard() {
-  const status = useVaultStatus();            // 'loading' | 'uninitialized' | 'locked' | 'unlocked'
-  if (status === 'loading') return <VaultLoading />;       // 异步读库期间不能当作"未初始化"
+  const { status, refresh } = useVaultStatus();
+  const { epoch } = useVaultSession();
+  if (status === 'loading') return <正在检查…/>;              // 异步读库期间不能当作"未初始化"，也不跳转
+  if (status === 'error') return <错误 + 重试 />;             // 读库失败 ≠ 未初始化
   if (status === 'uninitialized') return <Navigate to="/vault/setup" replace />;
-  if (status === 'locked') return <Navigate to="/vault/unlock" replace />;
-  return <Outlet />;
+  if (status === 'locked') return <Navigate to="/vault/unlock" replace state={{ from: location.pathname }} />;
+  return <UnlockedFrame><Outlet key={epoch} /></UnlockedFrame>;  // 顶栏：状态、"立即锁定"、恢复密钥提醒
 }
 ```
 
 `useVaultStatus` 在首次读库完成前返回 `'loading'`。如果直接把未加载完当成 `initialized === false`，已初始化的用户会被带去 `/vault/setup`，并有机会覆盖现有 Vault。
+
+**`key={epoch}` 不能省，只靠"状态变成 locked 就跳走"不够**：如果锁定和重新解锁发生在同一次渲染之间，状态始终是 `unlocked`，页面不会被卸载，上一个会话里的内容会留在屏幕上。`vault-routing.test.tsx` 里有一条专门的测试，去掉 `key={epoch}` 只有这一条会失败。
+
+**恢复密钥提醒**：用恢复密钥找回访问之后，旧的恢复密钥仍然有效，直到用户重新生成。`VaultGuard` 的顶栏下面在保险箱的每个页面显示一条不能关掉的提醒，指向设置页；设置页自己有更详细的提示，所以在那里不重复显示。用户在设置页完成重新生成、离开设置页时，提醒消失。
 
 ---
 
@@ -819,37 +853,44 @@ function VaultGuard() {
 - [x] 主密码强度策略（§5.4）：`initialize` / `changeMasterPassword` / `recoverAccess` 三处强制，策略可注入，`evaluatePassword` 供 UI 指示器使用（`tests/vault/password-policy.test.ts`）
 
 **Task 2.2: 隔离与安全（8–10h）**
-- [ ] Vault 逻辑只放在 Side Panel，不进 Service Worker 消息路由（现状成立：`src/background` 里没有任何 Vault 代码，但没有测试守着）
-- [ ] 如果将来必须在 SW 里加 `VAULT_*`：按 allow-list，校验 `sender.id === chrome.runtime.id && sender.tab === undefined`；错误不得回传 `error.message`
-- [ ] 测试：从 content script 上下文发 `VAULT_*` 消息被拒绝（没有对应测试）
-- [ ] 日志只记 id 和 type，不记 title / secret（现状：`src/vault` 里只有一处 `console.error`，内容固定、不含数据，有测试守着；但没有统一的日志规则和扫描测试，见 Task 5.1）
+- [x] Vault 逻辑只放在 Side Panel，不进 Service Worker 消息路由。`tests/vault/isolation.test.ts` 的静态守卫从 manifest 的入口（`background.service_worker` 与 `content_scripts[].js`）沿 import 图（相对路径和别名）走完所有可达模块，断言其中没有 `src/vault/**`、`src/db/vault-schema.ts`，也没有 `@zxcvbn-ts/`、`hash-wasm`、`@noble/hashes`；有两条自检证明遍历本身有效。另外对真实 `vite build` 的产物做过一次人工检查：`service-worker` 和 `content-script` 的 chunk 里没有 `PBKDF2` / `RiddleVaultDB` / `RN-V1` 等标记（这次检查没有做成自动测试）
+- [ ] 如果将来必须在 SW 里加 `VAULT_*`：按 allow-list，校验 `sender.id === chrome.runtime.id && sender.tab === undefined`；错误不得回传 `error.message`（**现在没有这个需求，所以没有做**；上一条的守卫测试会在有人这么做时失败，提醒他回来看这一条）
+- [x] 测试：从 content script 上下文和扩展页面上下文发 `VAULT_*` 消息都被拒绝（`isolation.test.ts` 的动态守卫，驱动真实的 `service-worker.ts`：10 种 `VAULT_*` 类型都返回 `{success:false, error:'Unknown message type'}`，响应不含任何 payload，畸形消息不抛，不会打开 `RiddleVaultDB`）。守卫测试做过变异检查：直接引用、以及经 `@shared` 中转模块间接引用，各被恰好一条测试抓到
+- [ ] 日志只记 id 和 type，不记 title / secret（现状：`src/vault` 里有三处 `console.error`——Session 的订阅者和设置监听者抛错各一处、`VaultStore` 的监听者抛错一处——文案都是固定的，不带数据，也不带被捕获的错误；`vault-session.test.ts` 和 `vault-store.test.ts` 各有测试断言错误内容不进日志。UI 错误提示不显示 `error.message`，有测试守着。但没有统一的日志规则，也没有"跑完整流程后扫描 console 输出"的测试，见 Task 5.1）
 
 **Task 2.3: Recovery Key 辅助（8–10h）**
-- [ ] "Test Recovery Key"：初始化后随时让用户输入 Recovery Key，验证能否解开 wrapper（不改任何数据）。**没有对应的服务方法**：`unlockWithRecoveryKey` 会打开 Session，不是纯验证，需要一个类似 `verifyMasterPassword` 的 `verifyRecoveryKey`
-- [ ] Settings"重新生成"复用 `rotateRecoveryKey`，要求主密码（服务层的 `rotateRecoveryKey` 已有且要求主密码，见 Task 2.1；缺的是 Settings 入口，属于 UI）
-- [ ] `recoveryRotationRequired` 为 true 时的持续提示（UI；服务层已经会写这个标记）
+- [x] "Test Recovery Key"：服务方法 `verifyRecoveryKey`（不碰 Session、不写库、不广播、用完清零；`vault-service-unlock.test.ts` 14 条，变异检查过）和设置页入口（`RecoveryKeySettings` 的"检查恢复密钥"，`vault-settings.test.tsx` 验证它不改库、不改会话 epoch，成功后清空输入框）
+- [x] Settings"重新生成"复用 `rotateRecoveryKey`，要求主密码：`RecoveryKeyRotation` 组件，Recover 的第二屏和设置页共用。流程是输入主密码 → 显示新 Key → 回填确认 → 才写库；取消或出错时旧 Key 仍有效（`vault-onboarding.test.tsx`、`vault-settings.test.tsx` 用真实的 `VaultService` 走完整流程）
+- [x] `recoveryRotationRequired` 为 true 时的持续提示：服务方法 `isRecoveryRotationRequired`（新增，12 条测试）、`VaultGuard` 里每个页面都显示的提醒条、设置页里更详细的提示（`vault-routing.test.tsx`、`vault-settings.test.tsx`）
 
 ### Phase 3: UI（58–74h）
 
 **Task 3.1: 初始化（18–24h）**
-- [ ] 4 步流程，状态只在内存
-- [ ] 强度指示器：调用 `service.evaluatePassword()`，不自己实现规则（强制执行已在服务层，见 §5.4）；对中文用户额外提示"建议使用长随机口令或随机词组"（zxcvbn 对中文和拼音会高估）。初始化、改主密码、恢复三个页面共用
-- [ ] Recovery Key 回填校验（§6.2），不是勾选框
-- [ ] 下载 `.txt` 的文件头警示
+测试：`vault-onboarding.test.tsx`（真实的 `VaultService`、真实的 KDF 流程和真实的 zxcvbn）、`vault-components.test.tsx`、`ceremony.test.tsx`、`ui-logic.test.ts`。
+
+- [x] 4 步流程，状态只在内存：说明 → 主密码 → 显示恢复密钥 → 回填确认。**回填确认通过之前数据库里什么都没有**，在第 3 步、第 4 步分别检查过；取消、中途离开页面（卸载）、确认之后创建失败，都不会留下半个保险箱。这条保证由 `useRecoveryKeyCeremony` 这个状态机承担，它只在 `confirm` 阶段才接受"确认"，`ceremony.test.tsx` 对它做了变异检查
+- [x] 强度指示器：调用 `service.evaluatePassword()`，不自己实现规则；对中文用户一直显示"建议使用长随机口令或随机词组"。初始化、改主密码、恢复三个页面共用同一个 `PasswordStrength`。评估中、评估失败（估算器加载不了）都当成不合格处理（对父组件通知 `null`），过期的评估结果被丢弃。**这只是界面上的便利，真正的把关仍在服务层**（§5.4）：页面测试里"弱密码时服务层的 `initialize` 根本没被调用"和服务层自己的拒绝是两层
+- [x] Recovery Key 回填校验（§6.2），不是勾选框：随机抽 3 组，挂载时确定一次（刷新不能换位置），全部匹配才启用"继续"，回车也不能绕过；回填那一步不再显示 Recovery Key（否则"回填"只是照抄）。比对是整组精确匹配：把整串 Recovery Key 粘进任何一个框都不通过
+- [x] 下载 `.txt` 的文件头警示：技术方案规定的原话（"此文件无需主密码即可打开你的保险箱，请勿与加密备份放在同一位置。"）出现在 Recovery Key 之前，逐字有测试。**界面上没有"复制 Recovery Key"按钮**（有测试守着）：这把密钥不需要主密码就能打开保险箱，一键复制会让它进入剪贴板历史，甚至被同步到其他设备
 
 **Task 3.2: 解锁与恢复（14–18h）**
-- [ ] 解锁页不用 `<form>`；上线前实测是否弹"保存密码"
-- [ ] 恢复页：步骤一与步骤二分开两屏，步骤一完成后即进入 Vault，并显示持续提示
-- [ ] 错误文案按 §5.3 三类
-- [ ] 路由与守卫按 §6.3：`setup`/`unlock`/`recover` 在守卫外；`loading` 状态
+- [x] 解锁页不用 `<form>`，`autoComplete="off"`（`vault-onboarding.test.tsx`；创建页和恢复页的密码框是 `new-password`，同样没有 `<form>`）
+- [ ] **上线前在真实 Chrome 的 Side Panel 里实测是否仍会弹"保存密码"**：jsdom 测试只能证明没有 `<form>` 和属性写对了，**不能证明 Chrome 不会弹**。没做
+- [x] 恢复页：步骤一与步骤二分开两屏，步骤一完成后即进入 Vault。第一步 `recoverAccess` 一成功会话就打开，页面**停在第二屏**而不是被自动带走（专门测试）；第二屏可以"稍后再说"，之后保险箱每个页面都有持续提示（见 §6.3）
+- [x] 错误文案按 §5.3 三类，另加"记录"语境（§5.3）；永远不显示 `error.message`，未知错误只显示"操作失败，请重试"（各页面都有测试）
+- [x] 路由与守卫按 §6.3：`setup`/`unlock`/`recover` 在守卫外（把 `unlock` 放进守卫里的变异会死循环，靠超时被抓到）；`loading`、`error` 状态不跳转（`vault-routing.test.tsx`）
 
 **Task 3.3: CRUD UI（26–32h）**
-- [ ] 列表只展示 summary，按 type 分组
-- [ ] 详情页才解密 secret，离开即清除
-- [ ] 搜索：关键词不进 URL，`autoComplete="off"`，不用 `<form>`
-- [ ] `SecretField` 按 §6.2
-- [ ] 复制：记 `lastCopiedSecret`，提示"请注意及时清除剪贴板"
-- [ ] 删除确认
+测试：`vault-records.test.tsx`、`vault-routing.test.tsx`、`vault-components.test.tsx`。
+
+- [x] 列表只展示 summary，按 type 分组：列表页**不调用** `getSecret`，页面里没有任何明文、用户名、网址或备注（测试逐个断言）；解不开的记录单独一组，不影响其他记录
+- [x] 详情页才解密 secret，离开即清除：卸载时 `store.clearSecret()`；切到另一条时，新记录还在加载的这段时间里页面上已经没有上一条的内容（连"路由刚变、清理还没跑"的那一次提交都检查了）；记录解不开时用"记录"的措辞，并允许删除它，否则它会永远留在列表里
+- [x] 搜索：关键词不进 URL，`autoComplete="off"`，不用 `<form>`；也不进 `localStorage` / `sessionStorage`，锁定再解锁后是空的
+- [x] `SecretField` 按 §6.2：隐藏时固定占位，不泄露长度；点"显示"才渲染成文本节点；不是 `<input>`；换记录时立刻复位（修了一个测试发现的真实缺陷：切走再切回来时旧记录会自动变回"显示"）
+- [ ] 复制：提示"已复制，请注意及时清除剪贴板"已做并有测试；**"记 `lastCopiedSecret`" 没有做，是有意的偏离**，理由和待决定的事见 §4.5
+- [x] 删除确认：`window.confirm`，取消确认时不调用 `deleteRecord`（专门的测试，变异检查抓到过一个"取消也删"的时序盲区并补强）
+
+另外编辑页（`VaultEditor`）有几条值得单独记的，都有测试：类型在编辑时不能改（类型参与 AAD，改类型等于换一条记录）；保存时**当前类型没有的字段一律丢掉**（先填了用户名又把类型改成安全笔记，用户名不会被存进去）；同一个路由 `/vault/:id/edit` 在 id 变化时 React Router 会复用同一个组件实例，已经修好"拿上一条的表单去覆盖另一条记录"的缺陷（渲染期按 id 重置表单，有专门的测试，去掉修复会失败）。
 
 ### Phase 4: 备份与设置（38–50h）
 
@@ -877,22 +918,24 @@ function VaultGuard() {
 - [ ] 测试：随机字节拼出的"结构合法"文件能过结构校验，但过不了第 2 步
 
 **Task 4.2: 设置（16–22h）**
-- [ ] 修改主密码
-- [ ] 自动锁定超时（1 / 5 / 15 分钟 / Never），文案说明"关闭面板即锁定"（服务层已就绪：`getAutoLockTimeout` / `setAutoLockTimeout`，缺的是设置页的 UI。四档的取值用 `AUTO_LOCK_TIMEOUT_OPTIONS`，不要在 UI 里再写一份）
-- [ ] 重新生成 Recovery Key（入口在 2.3 已做）
-- [ ] 导出前重新输入主密码（`verifyMasterPassword`）；提示"备份文件的安全性取决于主密码强度"
-- [ ] 不提供"选择 KDF"的选项，由产品定默认值并自动升级
+测试：`vault-settings.test.tsx`。
+
+- [x] 修改主密码（`ChangeMasterPassword`）：弱密码、两次不一致、没填当前密码都不能提交（服务层的 `changeMasterPassword` 根本没被调用）；当前密码错误时库不变、输入保留，输入框不会卡在禁用；成功后旧密码失效、新密码可用，**别的打开着的侧边栏被锁定**（服务层广播）、本面板保持解锁
+- [x] 自动锁定超时（1 / 5 / 15 分钟 / 从不）：四档的取值来自 `AUTO_LOCK_TIMEOUT_OPTIONS`，界面只写显示名（`Record<AutoLockTimeoutMs, string>` 由类型保证不会漏档）；选一档写进库、本面板立即生效；保存失败时选中状态保持原样（和实际生效的一致）；别的面板改了会跟着变，且本面板不会被锁定；卸载后不泄漏监听。文案写了"关闭侧边栏会立即锁定"，**这句话依赖 R4 的假设，没有在真实 Chrome 里验证过**（`pagehide` 兜底有测试，但那只证明代码在收到 `pagehide` 时会本地锁定）
+- [x] 重新生成 Recovery Key（入口在 2.3 已做）
+- [ ] 导出前重新输入主密码（`verifyMasterPassword`）；提示"备份文件的安全性取决于主密码强度"。**等 Task 4.1，导出还没做**
+- [x] 不提供"选择 KDF"的选项，由产品定默认值并自动升级（设置页里没有这个选项；自动升级的重包装属于 Task 2.1，已勾）
 
 ### Phase 5: 测试与优化（40–54h）
 
 **Task 5.1: 安全测试（18–24h）**
 - [ ] 并发：两个实例同时初始化、改密码、导入（初始化、改密码已有测试；导入等 Task 4.1）
-- [ ] 内存残留检查，具体步骤：Vault 里放哨兵字符串 `SENTINEL-7f3a…` → 打开详情页显示 → 锁定 → DevTools 强制 GC → 抓堆快照 → 搜索哨兵。记录结果；JS 字符串无法清零，目标是"锁定后 DOM 与组件 state 里没有"，不承诺内存取证安全
+- [ ] 内存残留检查，具体步骤：Vault 里放哨兵字符串 `SENTINEL-7f3a…` → 打开详情页显示 → 锁定 → DevTools 强制 GC → 抓堆快照 → 搜索哨兵。记录结果；JS 字符串无法清零，目标是"锁定后 DOM 与组件 state 里没有"，不承诺内存取证安全。**堆快照这一步没做，需要真实 Chrome。** "锁定后 DOM 与组件 state 里没有"这个目标有 jsdom 测试覆盖（`vault-routing.test.tsx` 的"锁定时页面被卸载：明文不残留"一组，用哨兵字符串检查页面文本和所有输入框的值）
 - [x] "IndexedDB 无明文"：直接读取 `vaultRecords` 的原始字节，对 `Uint8Array` 做子串扫描，查找已知秘密的 UTF-8 字节序列。**不要把密文 TextDecoder 解码后断言**，那个断言永远通过（`vault-service-records.test.ts` 的"IndexedDB 里不含明文"，还扫了 wrapper；`vault-service-unlock.test.ts` 也有"库里没有主密码、Recovery Key、Vault Key 的任何形式"）
 - [ ] 日志扫描：运行完整流程，断言 console 输出不含秘密
 
 **Task 5.2: 集成测试（12–16h）**
-- [x] 初始化 → 解锁 → CRUD → 锁定 → 重新解锁（`vault-service-records.test.ts` 的"完整流程"）
+- [x] 初始化 → 解锁 → CRUD → 锁定 → 重新解锁（`vault-service-records.test.ts` 的"完整流程"；UI 层面的对应：`vault-onboarding.test.tsx` 走完创建，`vault-records.test.tsx` 走 CRUD，`vault-routing.test.tsx` 走锁定、解锁、回到原页面）
 - [x] 改密码后旧密码失败、新密码成功、记录完整（`vault-service-keys.test.ts`）
 - [x] Recovery 两步，包含步骤间中断（`vault-service-keys.test.ts`）
 - [ ] 备份 → 覆盖导入 → 快照回退（等 Task 4.1）
@@ -1405,15 +1448,37 @@ test('Vault 备份：app 不等于 riddle-notes-vault 被拒绝', async () => { 
 ## 14. 开工顺序与待决策
 
 ### 进度与下一步
-**已完成**：Task 1.1 `RiddleVaultDB`、1.2 `CryptoService`、1.3 `VaultSession`（含自动锁定超时取自设置）、2.1 `VaultService`（含主密码强度策略）。
+**已完成（有 jsdom 测试）**：Task 1.1 `RiddleVaultDB`、1.2 `CryptoService`、1.3 `VaultSession`、2.1 `VaultService`（含主密码强度策略）、2.2 的隔离守卫测试、2.3 Recovery Key 辅助、Phase 3 UI 的主体（创建、解锁、恢复、列表、详情、编辑、守卫、Sidebar 入口）、Task 4.2 的设置页。组合根在 `src/vault/runtime.ts`，由 `src/sidepanel/App.tsx` 最外层的 `VaultRuntimeProvider` 接入。
 
 **部分完成**：Task 1.0。Argon2id 的 Node 基准和 manifest 构建试验做了（结果在 §7 Task 1.0），Side Panel 生命周期和低端机实测没做。
 
+**没有做**：Phase 4.1 加密备份（导出、导入、快照回退）；Task 5.1 的堆快照检查和日志扫描；Argon2id（现在是 PBKDF2-SHA256，`KdfParams` 联合类型和分派都留好了）。
+
+#### 没有在真实 Chrome 里验证过的事（上线前必须做）
+
+以下全部只有 jsdom 测试。jsdom 能证明代码逻辑和 DOM 结构，**证明不了浏览器的行为，也看不到页面实际长什么样**。
+
+1. **整个 UI 的实际渲染**。我没有在真实 Chrome 里打开过这些页面：布局、间距、配色、窄面板下的表现、深浅色、`.note-card` 套在 `<button>` 上的样式、`SecretField` 的等宽字体换行等，都没看过。最简单的办法：`npm run build` 后在 `chrome://extensions` 加载 `dist`，把整个流程手动走一遍。
+2. **R4：关闭 Side Panel 是否真的销毁页面**。"关闭面板即锁定"的文案（自动锁定设置页）和整个"关闭即锁定"的设计都依赖它。代码里的兜底是 `pagehide` 时本地锁定（`runtime.ts`，有测试），但这只证明收到 `pagehide` 时会锁，不证明 Chrome 的 Side Panel 关闭时一定会触发它、也不证明页面一定被销毁。
+3. **浏览器会不会弹"保存密码"**。各页面没有 `<form>`、`autoComplete` 也按设计写了，但 Chrome 的启发式没有测过。尤其是编辑页的"秘密"输入框是 `type="password"`、`autoComplete="off"`，在没有 `<form>` 的情况下是否会被当作密码字段处理，未知。
+4. **低端设备的 KDF 耗时**。测试里用的是很小的迭代次数；生产参数下的解锁耗时（目标低端设备 < 2s）没有在真实设备上测过。
+5. **Argon2id 在 Worker + `'wasm-unsafe-eval'` 下能否实例化**。当前没有采用 Argon2id，所以没有放宽 CSP，构建出的 manifest 与源码一致（权限、无自定义 CSP）。
+6. **侧边栏主 chunk 的体积增量**。构建产物确认了 zxcvbn 被拆成两个懒加载 chunk（约 47 kB 和 422 kB，只在第一次评估密码时下载），后台脚本和内容脚本的产物里没有任何保险箱代码。但我没有保存改动前的构建体积，**给不出主 chunk 具体增加了多少**。
+
+#### 与设计不一致、或有意偏离的地方
+
+- **`lastCopiedSecret` 没有记**（§4.5）。**需要你决定**：保持现状（只提示、不清除），还是加 `clipboardRead` 权限做尽力清除。
+- **没有 `VaultShell`**，`key={epoch}` 在 `VaultGuard` 里（§6.3 说明了原因）。
+- **"可导出原始加密备份"** 这句文案（§5.3）引用了还没有的导出功能。
+- **明文放在独立的 `VaultStore` 里**，不是"Session 持有的 store"（§4.4）。
+- **没有任何一个变异检查证明的盲区**：`VaultEditor` 里填表单时的 `secret.id === id` 比对是纵深防御，我构造不出能单独抓到去掉它的测试，保留是因为后果是静默覆盖另一条记录而代价为零（代码注释里写了）。
+
 **下一步**（按依赖排序）：
-1. **Task 1.0 剩下的部分**：在真实 Chrome 里验证 Side Panel 关闭是否销毁页面（§4.1 的假设至今没实测）；低端机上跑 `scripts/spike-argon2id-bench.mjs`；在 Chrome 的 Worker 里验证 hash-wasm 能否在 `'wasm-unsafe-eval'` 下实例化。结果会改动 §4.1 和 §1.2。
-2. Task 2.2 / 2.3 剩下的服务层部分（`verifyRecoveryKey`、SW 隔离的守卫测试）。
-3. Phase 3 UI，Phase 4 备份，按 §7 推进。UI 要注意的接口：强度指示器用 `evaluatePassword()`（§5.4）；自动锁定设置页用 `getAutoLockTimeout()` / `setAutoLockTimeout()`，四档取自 `AUTO_LOCK_TIMEOUT_OPTIONS`（§4.3）。
-4. 生产代码里还没有任何地方创建 `VaultSession` 和 `VaultService`（只有测试在创建）。接 UI 时要有一个"组合根"：先建 Session，再建 Service，调用 `session.startIdleWatch()` 和 `trackActivity(session)`，并在页面卸载时 `dispose()`。
+1. **上面"没有在真实 Chrome 里验证过的事"那一节，全部手动走一遍。** 这是现在最大的风险，比任何新功能都优先。结果会改动 §4.1 和 §1.2。
+2. 决定 `lastCopiedSecret` 的去留（§4.5）。
+3. Task 1.0 剩下的部分和 KDF 的决策（见"待决策"）。
+4. Phase 4.1 加密备份。做完之后"可导出原始加密备份"那句文案才名副其实，设置页里的"导出前验证主密码"也才有地方放。
+5. Task 5.1 的堆快照检查和日志扫描。
 
 ### 待决策
 - [ ] **KDF**：Argon2id 还是 PBKDF2 600k + 自动升级（由 Task 1.0 实测结果决定）。Node 数据倾向 hash-wasm + Worker，但低端机数据没有
@@ -1421,6 +1486,7 @@ test('Vault 备份：app 不等于 riddle-notes-vault 被拒绝', async () => { 
 - [ ] **密码生成器**：延后到 P1（已同意）
 
 ### 修订记录
+- **v1.2 状态同步（三）**：Phase 3 UI 和 Task 4.2 设置页实现并有测试；新增 `verifyRecoveryKey`、`isRecoveryRotationRequired`、`VaultStore`、组合根和 `VaultGuard`。§4.4 第 3、4 条按实现改写（`VaultGuard` 承担 `key={epoch}`、明文在独立的 `VaultStore` 里）；§4.5 写明 `lastCopiedSecret` 有意没做及理由；§5.2 补两个新方法；§5.3 补"记录"语境和一处文案与现状不符；§6.1 目录更新；§6.3 的 `VaultShell` 示意改成实际的 `VaultGuard`；§7 的勾选按测试证据更新（没有证据的不勾，写明缺什么）；§14 重写，新增"没有在真实 Chrome 里验证过的事"和"与设计不一致的地方"两份清单。测试计数更新为 22 个文件、941 个用例。§12、§13 的发布检查表**没有动**：它们要求能指到一个测试**或一次手工验证**，而手工验证一次都还没做。
 - **v1.2 状态同步（二）**：Task 1.3 最后一条已完成并勾选：自动锁定超时取自 `vaultSettings`（§4.2、§4.3、§5.2 同步补入 `settings-changed` 广播、Session 的超时缓存、`get/setAutoLockTimeout`，以及"解锁读失败用默认值、刷新读失败保持当前值"的取舍）；§4.2 的 Session 示意代码仍与实现有出入，已注明以代码为准；测试计数更新为 10 个文件、455 个用例；§14 的"下一步"去掉已完成的一项。
 - **v1.2 状态同步**（版本号不变，内容未重新评审）：§7 的复选框按代码和测试勾选，没有测试对应的不勾，并写明缺什么；状态行和附录 C 里"没有任何 Vault 代码"的说法更正；新增 §5.4 主密码强度策略，强制执行放在服务层，§6.2、Task 3.1 随之改成"UI 只展示"；§5.1、§2.2、§9.1 里 `generateRecoveryKey` / `parseRecoveryKey` 更正为异步并补上 `formatRecoveryKey`；Task 1.0 补入 Node 基准结果与 manifest 构建试验。§12、§13 没有动。
 - **v1.2**：按第二轮评审重写 §2–§9、§11–§14。主要改动：HKDF usages 改为 `encrypt/decrypt`；乐观锁真正落地（`expectedRevision` 与 `keyId`）；`lock()` 与 `lockLocal()` 分离；Recovery 拆成 `recoverAccess` 与 `rotateRecoveryKey`；Session 统一入口 `open()` 与 `extractable:false`；路由守卫修复；错误分类改为三类；Recovery Key 规范与测试向量定稿；AAD、IV 长度校验、字节清零写入 Task 1.2；`vaultSnapshot` 并入 v1；Argon2id spike 前移到 Task 1.0；§9 测试全部对齐新接口。
