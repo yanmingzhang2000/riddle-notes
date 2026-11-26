@@ -267,6 +267,11 @@
 }
 
 .hero-reply p {
+  /* 演示 Prompt 很长,只露出两行,其余用省略号。回复卡高度固定,墨迹路径的起点才对得上星标 */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   margin: 0 0 calc(var(--u) * 8);
   padding-left: calc(var(--u) * 10);
   border-left: 2px solid var(--sage);
@@ -498,6 +503,11 @@
 }
 
 .hero-note__excerpt {
+  /* 手札里最多露出六行,其余用省略号 */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 6;
+  overflow: hidden;
   margin: 0 0 1rem;
   font-size: max(0.76rem, calc(var(--u) * 12.5));
   line-height: 1.75;

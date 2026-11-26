@@ -35,7 +35,12 @@ const STAR_PATH = 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25
 /** 墨迹路径:从回复卡的星标出发,经过地图,从手札左缘下方进入手札 */
 const INK_PATH = 'M154 284C154 346 226 382 292 368S352 340 392 330'
 
-const SAVED_EXCERPT = '检查目标用户、核心场景、范围边界、依赖风险和验收标准，并给出修改建议。'
+/**
+ * 示意图里演示用的 Prompt 原文。放不下的部分由 hero.css 的 line-clamp 用省略号截断,
+ * 与扩展真实收藏时"标题取前 50 字、描述取前 200 字,多出来的用 ... 代替"的行为一致。
+ */
+const DEMO_PROMPT =
+  '你现在是一位有多年经验的文字编辑，专门负责抹掉内容里的机器腔。前提是事实、观点和关键信息一个都不许改，在此基础上把整篇重新捋一遍。 删掉那种开头很正确、看完啥也没说的空话，砍掉硬凑的连接词、排到一半以上的排比，还有结尾硬拔的情绪升华和教科书式的套话。 句子该长就长、该短就短，把停顿、顺序和用词的疏密重新排一下；该补的细节补上，转折自然一点，立场敢说清楚一点。写得不那么完美也没关系，别端着。不准硬塞网络热词，不准假装口语化，不准编我没说过的个人经历，不准加原文没有的事实，更不准换成另一套模板腔。'
 
 function StarIcon({ className }: { className?: string }) {
   return (
@@ -133,7 +138,7 @@ export default function Hero({ version }: HeroProps) {
               ))}
 
               <div className="hero-reply" aria-hidden="true">
-                <p>{SAVED_EXCERPT}</p>
+                <p>{DEMO_PROMPT}</p>
                 <div className="hero-reply__tools">
                   <span className="hero-reply__tool"><Copy size={15} /></span>
                   <span className="hero-reply__tool"><ThumbsUp size={15} /></span>
@@ -162,13 +167,13 @@ export default function Hero({ version }: HeroProps) {
                       <span>NOTE 014</span>
                       <StarIcon className="hero-note__star" />
                     </div>
-                    <p className="hero-note__title" style={{ '--i': 1 } as CSSProperties}>产品需求方案 Review</p>
+                    <p className="hero-note__title" style={{ '--i': 1 } as CSSProperties}>去AI味</p>
                     <p className="hero-note__source" style={{ '--i': 2 } as CSSProperties}>ChatGPT · chatgpt.com</p>
                     <i className="hero-note__rule" style={{ '--i': 3 } as CSSProperties} />
-                    <p className="hero-note__excerpt" style={{ '--i': 4 } as CSSProperties}>{SAVED_EXCERPT}</p>
+                    <p className="hero-note__excerpt" style={{ '--i': 4 } as CSSProperties}>{DEMO_PROMPT}</p>
                     <div className="hero-note__tags" style={{ '--i': 5 } as CSSProperties}>
-                      <span>产品</span>
-                      <span>评审</span>
+                      <span>写作</span>
+                      <span>润色</span>
                     </div>
                   </div>
                 </div>

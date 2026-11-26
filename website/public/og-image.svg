@@ -37,10 +37,13 @@
     <rect width="252" height="340" fill="#FBF8F0" stroke="#8B7D6A" stroke-opacity=".35"/>
     <line x1="27" y1="0" x2="27" y2="340" stroke="#8A5B4B" stroke-opacity=".28"/>
     <text x="45" y="48" font-family="monospace" font-size="11" letter-spacing="2" fill="#8A5B4B">SAVED PROMPT</text>
-    <text x="45" y="96" font-family="Georgia,serif" font-size="25" fill="#24241F">产品需求方案 Review</text>
+    <text x="45" y="96" font-family="Georgia,serif" font-size="25" fill="#24241F">去AI味</text>
     <text x="45" y="135" font-family="Arial,sans-serif" font-size="13" fill="#776B60">来源 · ChatGPT Web</text>
     <line x1="45" y1="165" x2="105" y2="165" stroke="#B18A45"/>
-    <text x="45" y="213" font-family="Arial,sans-serif" font-size="15" fill="#463A2F">工作   检查清单</text>
+    <text x="45" y="198" font-family="Arial,sans-serif" font-size="13" fill="#463A2F">你现在是一位有多年经验的</text>
+    <text x="45" y="220" font-family="Arial,sans-serif" font-size="13" fill="#463A2F">文字编辑，专门负责抹掉内</text>
+    <text x="45" y="242" font-family="Arial,sans-serif" font-size="13" fill="#463A2F">容里的机器腔。前提是事…</text>
+    <text x="45" y="282" font-family="Arial,sans-serif" font-size="13" fill="#776B60">写作   润色</text>
     <text x="45" y="311" font-family="monospace" font-size="10" fill="#776B60">RIDDLE NOTES</text>
     <text x="220" y="311" font-family="monospace" font-size="10" fill="#B18A45">14</text>
   </g>
