@@ -4,6 +4,14 @@
  * 对应 supabase-migration.sql 中的表结构
  */
 
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
 export interface Database {
   public: {
     Tables: {
@@ -47,6 +55,7 @@ export interface Database {
           size_bytes?: never;
           created_at?: never;
         };
+        Relationships: [];
       };
       sync_metadata: {
         Row: {
@@ -67,6 +76,7 @@ export interface Database {
           last_sync_at?: string;
           device_count?: number;
         };
+        Relationships: [];
       };
       sync_recovery_keys: {
         Row: {
@@ -90,7 +100,12 @@ export interface Database {
           wrap_iv?: Uint8Array;
           created_at?: never;
         };
+        Relationships: [];
       };
     };
+    Views: {};
+    Functions: {};
+    Enums: {};
+    CompositeTypes: {};
   };
 }

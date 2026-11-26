@@ -78,7 +78,7 @@ function toBytes(buffer: ArrayBuffer): Uint8Array {
 }
 
 function asBufferSource(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 function requireLength(bytes: Uint8Array | undefined, length: number): asserts bytes is Uint8Array {

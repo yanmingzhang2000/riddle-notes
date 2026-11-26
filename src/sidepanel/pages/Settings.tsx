@@ -28,6 +28,7 @@ import {
   safetyBackupFileName,
 } from '../../shared/backup';
 import { isAnalyticsEnabled, setAnalyticsEnabled } from '../../shared/analytics';
+import CloudSyncSettings from '../components/CloudSyncSettings';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -83,7 +84,7 @@ const Settings: React.FC = () => {
           });
         }
       } catch (error) {
-        console.error('Failed to initialize settings:', error);
+        console.debug('Failed to initialize settings:', error);
       }
     };
 
@@ -412,6 +413,9 @@ const Settings: React.FC = () => {
             导入会覆盖现有数据。导入前会先自动下载一份现有数据的备份。
           </p>
         </section>
+
+        {/* Cloud Sync */}
+        <CloudSyncSettings />
 
         {/* Onboarding */}
         <section className="mb-8">

@@ -28,10 +28,12 @@ CREATE INDEX IF NOT EXISTS idx_snapshots_user_version ON sync_snapshots(user_id,
 -- RLS 策略
 ALTER TABLE sync_snapshots ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can read own snapshots" ON sync_snapshots;
 CREATE POLICY "Users can read own snapshots" 
   ON sync_snapshots FOR SELECT 
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own snapshots" ON sync_snapshots;
 CREATE POLICY "Users can insert own snapshots" 
   ON sync_snapshots FOR INSERT 
   WITH CHECK (auth.uid() = user_id);
@@ -52,14 +54,17 @@ CREATE TABLE IF NOT EXISTS sync_metadata (
 -- RLS 策略
 ALTER TABLE sync_metadata ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can read own metadata" ON sync_metadata;
 CREATE POLICY "Users can read own metadata" 
   ON sync_metadata FOR SELECT 
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own metadata" ON sync_metadata;
 CREATE POLICY "Users can insert own metadata" 
   ON sync_metadata FOR INSERT 
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own metadata" ON sync_metadata;
 CREATE POLICY "Users can update own metadata" 
   ON sync_metadata FOR UPDATE 
   USING (auth.uid() = user_id);
@@ -109,14 +114,17 @@ CREATE TABLE IF NOT EXISTS sync_recovery_keys (
 -- RLS 策略
 ALTER TABLE sync_recovery_keys ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can read own recovery keys" ON sync_recovery_keys;
 CREATE POLICY "Users can read own recovery keys" 
   ON sync_recovery_keys FOR SELECT 
   USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert own recovery keys" ON sync_recovery_keys;
 CREATE POLICY "Users can insert own recovery keys" 
   ON sync_recovery_keys FOR INSERT 
   WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update own recovery keys" ON sync_recovery_keys;
 CREATE POLICY "Users can update own recovery keys" 
   ON sync_recovery_keys FOR UPDATE 
   USING (auth.uid() = user_id);

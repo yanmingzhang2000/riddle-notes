@@ -159,7 +159,7 @@ export async function uploadSnapshot(
     // 上传到 Supabase
     const { error: insertError } = await supabase
       .from('sync_snapshots')
-      .insert({
+      .insert<Database['public']['Tables']['sync_snapshots']['Insert']>({
         user_id: userId,
         version: newVersion,
         encrypted_data: encryptedData,
@@ -205,7 +205,8 @@ export async function downloadLatestSnapshot(
     .select('*')
     .eq('user_id', userId)
     .order('version', { ascending: false })
-    .limit(1);
+    .limit(1)
+    .returns<SyncSnapshot[]>();
 
   if (selectError) throw new NetworkError(selectError.message);
   if (!snapshots || snapshots.length === 0) return null;
@@ -259,7 +260,7 @@ export async function getLatestVersion(userId?: string): Promise<number> {
     .from('sync_metadata')
     .select('current_version')
     .eq('user_id', uid)
-    .single();
+    .single<{ current_version: number }>();
 
   if (error) {
     if (error.code === 'PGRST116') { // no rows returned
@@ -277,7 +278,7 @@ export async function getLatestVersion(userId?: string): Promise<number> {
 async function updateMetadata(userId: string, version: number): Promise<void> {
   const { error } = await supabase
     .from('sync_metadata')
-    .upsert({
+    .upsert<Database['public']['Tables']['sync_metadata']['Insert']>({
       user_id: userId,
       current_version: version,
       last_sync_at: new Date().toISOString(),
@@ -297,7 +298,7 @@ export async function getSyncMetadata(): Promise<SyncMetadata | null> {
     .from('sync_metadata')
     .select('*')
     .eq('user_id', userId)
-    .single();
+    .single<SyncMetadata>();
 
   if (error) {
     if (error.code === 'PGRST116') return null;
@@ -318,7 +319,8 @@ export async function listSnapshots(): Promise<Array<{ version: number; createdA
     .from('sync_snapshots')
     .select('version, created_at, size_bytes')
     .eq('user_id', userId)
-    .order('version', { ascending: false });
+    .order('version', { ascending: false })
+    .returns<Array<{ version: number; created_at: string; size_bytes: number }>>();
 
   if (error) throw new NetworkError(error.message);
 
