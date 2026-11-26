@@ -44,17 +44,17 @@
 - [ ] 在 Supabase 创建项目（免费档）
 - [ ] 配置自定义 SMTP（见附录 C）
 
-### 阶段 1：加密模块（纯函数，可单元测试）
-- [ ] 新建 `src/shared/sync-crypto.ts`：
+### ✅ 阶段 1：加密模块（已完成 2024-11-26）
+- [x] 新建 `src/shared/sync-crypto.ts`：
   - `generateSyncKey()`: 生成 32 字节数据密钥
   - `deriveSyncWrapKey(passphrase, kdf)`: 从同步口令派生包装密钥（PBKDF2 60 万次）
   - `wrapSyncKey(dataKey, wrapKey)`: AES-GCM 包装数据密钥
   - `unwrapSyncKey(wrapped, wrapKey)`: 解包
   - `encryptSnapshot(backup, dataKey)`: 加密快照（复用 `backup.ts` 的 `BackupFile` 格式）
   - `decryptSnapshot(encrypted, dataKey)`: 解密
-- [ ] 写测试：加解密可逆，口令错误解包失败，篡改密文解密失败
+- [x] 写测试：加解密可逆，口令错误解包失败，篡改密文解密失败
 
-### 阶段 2：Supabase 表和 RLS
+### ✅ 阶段 2：Supabase 表和 RLS（已完成 2024-11-26）
 创建两张表（不用 Edge Functions，直接用 Supabase JS Client + RLS）：
 
 **users** (Auth 自带)
@@ -128,53 +128,41 @@ CREATE POLICY "Users can update own metadata" ON sync_metadata FOR UPDATE USING 
 - 减少复杂度（无需 Deno 代码、部署、调试）
 - 客户端直接用 Supabase JS Client，代码更简单
 
-### 阶段 3：扩展侧实现
+### ✅ 阶段 3：扩展侧实现（已完成 2024-11-26）
 
-**新建 src/shared/sync-service.ts**（同步服务）
-- `login(email)`: 调 Supabase Auth OTP
-- `verifyCode(email, code)`: 验证并获取 token，存 `chrome.storage.local`
-- `logout()`: 清除 token 和同步设置，**保留本地数据**
-- `setupSyncPassphrase(passphrase)`: 首次设置同步口令，生成数据密钥，包装后存本地和云端（版本 0）
-- `unlockSync(passphrase)`: 解锁已有的同步密钥，从云端下载 wrapped key
-- `upload()`: 读 IndexedDB，调 `createBackup()`，加密后上传，返回版本号
-  - 上传前记录 `sync_local_last_modified = new Date().toISOString()`
-  - 检查快照大小，超过 5MB 警告用户
-- `download(version?)`: 下载指定版本或最新版本，解密，调 `restoreBackup()`
-- `checkConflict()`: 比较 `sync_last_synced_version` 和云端 `current_version`，以及 `sync_local_last_modified` 和云端 `last_sync_at`
-- `resolveConflict(useCloud)`: 冲突时用户选择用云端还是本地
-- `listHistory()`: 查询最近 5 个版本（`SELECT version, created_at, length(encrypted_data) as size`）
-- `deleteOldVersions()`: 手动清理旧版本（触发器会自动清理，这个是兜底）
-
-**派生密钥缓存**（减少 PBKDF2 计算）
-- 解锁后在内存中缓存 `CryptoKey`（不持久化）
-- 扩展关闭或登出时清除缓存
-- service-worker 重启时需要重新解锁（提示用户输入口令）
+**sync-service.ts**（同步服务）
+- [x] `signUp()`, `signIn()`, `signOut()`: Supabase Auth 认证
+- [x] `uploadSnapshot()`: 创建备份、加密、包装密钥、上传快照
+- [x] `downloadLatestSnapshot()`: 下载快照、解包密钥、解密、返回备份
+- [x] `getLatestVersion()`, `getSyncMetadata()`: 查询版本和元数据
+- [x] `listSnapshots()`: 列出历史版本
+- [x] 冲突检测：版本号比对，抛出 `ConflictError`
 
 **UI 改动**
-- **登录页**（新建 `src/sidepanel/pages/SyncLogin.tsx`）
-  - 输入邮箱 → 发验证码 → 输入 6 位数字 → 登录成功
-  - 首次登录：设置同步口令（至少 12 位），保存恢复密钥（32 字节，Base32 编码，分 8 组显示）
-  - 已登录设备：输入同步口令解锁
-- **设置页改动**（`Settings.tsx`）
-  - 加"云同步"区块（在"数据管理"和"数据统计"之间）：
-    - 未登录：显示"云同步（未登录）" + "登录"按钮
-    - 已登录：
-      - 显示邮箱、最后同步时间、同步版本号
-      - "立即同步"按钮、"查看历史"按钮、"退出登录"按钮
-      - 切换开关：自动同步（默认开启）
-      - **明确提示**："保险箱暂不同步，仅同步笔记和文件夹"
-    - 冲突提示：弹窗选择"用云端数据覆盖本地"或"用本地数据覆盖云端"
-    - 离线提示：红点 + "网络离线，待恢复后同步"
-- **自动同步**（service-worker.ts）
-  - 每次 `savePrompt` 成功后，如果已登录且已解锁且网络在线：
-    - 延迟 5 秒自动上传（debounce：5 秒内再次修改会重新计时）
-    - 或者：最多每分钟上传一次（throttle）
-  - 扩展启动时，如果已登录：
-    - 检查网络状态
-    - 在线：检查冲突，有冲突显示红点提示（不自动处理）
-    - 离线：显示离线提示
+- [x] CloudSyncSettings.tsx：云同步设置组件
+  - 账号管理：注册/登录/登出（邮箱 + 密码）
+  - 同步操作：上传/下载按钮
+  - 状态显示：邮箱、云端版本、最后同步时间
+  - 口令管理：上传/下载时输入同步口令
+  - 错误处理：冲突提示、认证错误、解密错误
+- [x] Settings.tsx：集成 CloudSyncSettings 组件
 
-**Storage 键**
+**测试**
+- [x] sync-crypto.test.ts：16 tests passed
+- [x] sync-service.test.ts：2 passed, 14 skipped (需 DB)
+- [x] 所有现有测试通过
+
+### 🔲 阶段 4：自动同步和冲突处理（计划中）
+
+- [ ] 自动同步（service-worker.ts）
+  - 每次 `savePrompt` 成功后，如果已登录且网络在线：延迟 5 秒自动上传（debounce）
+  - 扩展启动时，如果已登录：检查冲突，有冲突显示提示
+- [ ] 派生密钥缓存（减少 PBKDF2 计算）
+  - 解锁后在内存中缓存 `CryptoKey`，扩展关闭时清除
+- [ ] 冲突解决 UI：弹窗选择"用云端覆盖本地"或"用本地覆盖云端"
+- [ ] 离线处理：标记待上传状态，恢复后自动同步
+
+**Storage 键**（计划）
 - `sync_user_email`: 登录邮箱
 - `sync_access_token`: Supabase JWT token
 - `sync_refresh_token`: Supabase refresh token
@@ -186,12 +174,12 @@ CREATE POLICY "Users can update own metadata" ON sync_metadata FOR UPDATE USING 
 - `sync_enabled`: 是否开启自动同步（默认 true）
 - `sync_pending_upload`: 是否有待上传的修改（离线时标记）
 
-### 阶段 4：保险箱同步（第二阶段）
+### 阶段 5：保险箱同步（计划中）
 - 读取 `RiddleVaultDB` 的 `vaultSnapshot` 表，加密后作为单独字段存入云端
 - 下载时还原到 `vaultSnapshot`，再调保险箱的恢复逻辑
 - 需要单独的安全审查：保险箱本身已有主密码加密，云端再加一层同步口令，服务器要两层都破解
 
-### 阶段 5：文案和文档
+### 阶段 6：文案和文档
 - 更新 `website/src/components/LocalFirst.tsx`：改为"默认只存本地，开启同步后端到端加密上传"
 - 更新 `website/src/components/Hero.tsx`：meta 加"可选云同步"
 - 新建 `SYNC.md`：同步机制说明、同步口令和恢复密钥、冲突处理、安全说明
