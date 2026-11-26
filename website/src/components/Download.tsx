@@ -21,7 +21,7 @@ export default function Download({ version }: DownloadProps) {
           <p className="download-version">当前版本 v{version.version} · 支持 ChatGPT Web</p>
           <p className="download-summary">下载安装包并解压，通过 Chrome 开发者模式加载即可使用，不需要安装 Node.js 或自行构建。</p>
           <div className="download-actions">
-            <a className="button button--ink" href={version.extensionDownloadPath} download>
+            <a className="button button--ink" href={version.extensionDownloadPath} download data-umami-event="download_extension">
               <ArrowDownToLine size={16} aria-hidden="true" />
               下载安装包
             </a>

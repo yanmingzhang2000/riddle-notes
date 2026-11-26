@@ -81,7 +81,7 @@ export default function Hero({ version }: HeroProps) {
           <p className="hero__subtitle">Your private collection of useful prompts.</p>
           <p className="hero__lead">在 AI 回复旁点一下星标，Prompt 和回复就收进你的本地手札。</p>
           <div className="hero__actions">
-            <a className="button button--ink" href={version.extensionDownloadPath} download>
+            <a className="button button--ink" href={version.extensionDownloadPath} download data-umami-event="download_extension">
               <ArrowDownToLine size={16} aria-hidden="true" />
               下载安装包
             </a>
@@ -90,7 +90,7 @@ export default function Hero({ version }: HeroProps) {
               查看安装步骤
             </a>
           </div>
-          <p className="hero__meta">开发版 · 收藏数据只存在本地 · 需手动安装</p>
+          <p className="hero__meta">开发版 · 收藏数据只存在本地 · 匿名使用统计可关闭 · 需手动安装</p>
         </div>
 
         <div className="hero-visual">
