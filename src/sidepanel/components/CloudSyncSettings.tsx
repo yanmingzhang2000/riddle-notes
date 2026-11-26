@@ -25,6 +25,7 @@ import {
 } from '../../shared/sync-service';
 import { createBackup, restoreBackup } from '../../shared/backup';
 import { db } from '../../db/schema';
+import { autoSyncManager, STORAGE_KEYS } from '../../shared/auto-sync';
 
 type SyncState = 'idle' | 'uploading' | 'downloading' | 'logging-in' | 'signing-up';
 
@@ -34,6 +35,8 @@ const CloudSyncSettings: React.FC = () => {
   const [lastSyncAt, setLastSyncAt] = useState<Date | null>(null);
   const [currentVersion, setCurrentVersion] = useState<number>(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
+  const [hasPassphraseCache, setHasPassphraseCache] = useState(false);
 
   // 认证表单
   const [showAuthForm, setShowAuthForm] = useState(false);
@@ -49,6 +52,7 @@ const CloudSyncSettings: React.FC = () => {
   // 加载用户信息和同步状态
   useEffect(() => {
     loadUserInfo();
+    loadAutoSyncSettings();
   }, []);
 
   const loadUserInfo = async () => {
@@ -67,6 +71,12 @@ const CloudSyncSettings: React.FC = () => {
       // 优雅降级：测试环境或 Supabase 不可用时不报错
       console.debug('Cloud sync not available:', error);
     }
+  };
+
+  const loadAutoSyncSettings = async () => {
+    const enabled = await autoSyncManager.isEnabled();
+    setAutoSyncEnabled(enabled);
+    setHasPassphraseCache(autoSyncManager.hasPassphraseCache());
   };
 
   const handleAuth = async () => {
@@ -104,9 +114,11 @@ const CloudSyncSettings: React.FC = () => {
 
     try {
       await signOut();
+      autoSyncManager.clearPassphraseCache();
       setUserEmail(null);
       setCurrentVersion(0);
       setLastSyncAt(null);
+      setHasPassphraseCache(false);
       alert('已退出登录');
     } catch (error) {
       console.error('Sign out failed:', error);
@@ -124,17 +136,15 @@ const CloudSyncSettings: React.FC = () => {
       setSyncState('uploading');
       setErrorMessage(null);
 
-      // 创建备份快照
-      const backup = await createBackup(db);
-
-      // 上传到云端
-      const newVersion = await uploadSnapshot(backup, passphrase, currentVersion);
+      // 使用自动同步管理器上传（会缓存口令）
+      const newVersion = await autoSyncManager.manualSync(passphrase);
 
       setCurrentVersion(newVersion);
       setLastSyncAt(new Date());
       setShowPassphraseForm(false);
       setPassphrase('');
-      alert(`上传成功！版本 v${newVersion}`);
+      setHasPassphraseCache(true);
+      alert(`上传成功！版本 v${newVersion}\n\n自动同步已启用，后续修改将自动上传。`);
     } catch (error) {
       console.error('Upload failed:', error);
       
@@ -175,12 +185,21 @@ const CloudSyncSettings: React.FC = () => {
 
       // 恢复数据
       await restoreBackup(db, result.backup);
+      
+      // 缓存口令
+      autoSyncManager.cachePassphrase(passphrase);
+      
+      // 更新同步版本号
+      await chrome.storage.local.set({
+        [STORAGE_KEYS.SYNC_LAST_SYNCED_VERSION]: result.version,
+      });
 
       setCurrentVersion(result.version);
       setLastSyncAt(new Date());
       setShowPassphraseForm(false);
       setPassphrase('');
-      alert(`下载成功！已恢复 ${result.backup.counts.prompts} 条笔记`);
+      setHasPassphraseCache(true);
+      alert(`下载成功！已恢复 ${result.backup.counts.prompts} 条笔记\n\n自动同步已启用。`);
       window.location.reload(); // 刷新界面
     } catch (error) {
       console.error('Download failed:', error);
@@ -281,14 +300,71 @@ const CloudSyncSettings: React.FC = () => {
                 )}
               </>
             )}
+            
+            {/* 自动同步开关 */}
+            <div className="border-t border-brown/10 pt-3">
+              <label className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <span className="text-sm font-medium text-brown">自动同步</span>
+                  <p className="text-xs text-soft mt-0.5">
+                    修改笔记后自动上传（需先解锁口令）
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={autoSyncEnabled}
+                  onChange={async (e) => {
+                    const enabled = e.target.checked;
+                    setAutoSyncEnabled(enabled);
+                    await autoSyncManager.setEnabled(enabled);
+                  }}
+                  className="w-10 h-5 bg-brown/20 rounded-full appearance-none cursor-pointer relative
+                    checked:bg-sage transition-colors
+                    after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:w-4 after:h-4 
+                    after:bg-white after:rounded-full after:transition-transform
+                    checked:after:translate-x-5"
+                />
+              </label>
+              
+              {hasPassphraseCache && (
+                <div className="mt-2 flex items-center gap-1 text-xs text-sage">
+                  <CheckCircle className="w-3 h-3" />
+                  <span>口令已解锁，自动同步已就绪</span>
+                </div>
+              )}
+              
+              {!hasPassphraseCache && userEmail && (
+                <div className="mt-2 flex items-center gap-1 text-xs text-brown">
+                  <Key className="w-3 h-3" />
+                  <span>需先上传或下载一次以解锁口令</span>
+                </div>
+              )}
+            </div>
 
-            <button
-              onClick={handleSignOut}
-              className="btn-secondary text-sm flex items-center gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              退出登录
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSignOut}
+                className="btn-secondary text-sm flex items-center gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                退出登录
+              </button>
+              
+              {hasPassphraseCache && (
+                <button
+                  onClick={() => {
+                    autoSyncManager.clearPassphraseCache();
+                    setHasPassphraseCache(false);
+                    alert('口令缓存已清除。再次同步需重新输入口令。');
+                  }}
+                  className="btn-secondary text-sm flex items-center gap-2"
+                  title="清除口令缓存"
+                >
+                  <Key className="w-4 h-4" />
+                  清除口令
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

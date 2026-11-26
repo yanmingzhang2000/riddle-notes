@@ -1,6 +1,7 @@
 import { db, initializeDefaultData } from '@db/schema';
 import { initOnboardingOnInstalled } from '@shared/onboarding';
 import { trackInstall, trackSavePrompt, setupDailyHeartbeat, listenForHeartbeat } from '@shared/analytics';
+import { autoSyncManager } from '@shared/auto-sync';
 
 // 监听 alarm（每日心跳）
 listenForHeartbeat();
@@ -32,6 +33,17 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   await setupDailyHeartbeat();
   
   console.log('[Sidecar] Initialization complete');
+});
+
+// 扩展启动时检查同步冲突
+chrome.runtime.onStartup.addListener(async () => {
+  console.log('[Sidecar] Extension startup');
+  
+  try {
+    await autoSyncManager.checkConflictOnStartup();
+  } catch (error) {
+    console.error('[Sidecar] Check conflict on startup failed:', error);
+  }
 });
 
 // 监听消息
@@ -141,6 +153,14 @@ async function savePrompt(data: {
 
   // 上报保存事件
   await trackSavePrompt();
+  
+  // 触发自动同步
+  try {
+    await autoSyncManager.markLocalModified();
+    await autoSyncManager.scheduleAutoSync();
+  } catch (error) {
+    console.error('[Sidecar] Auto sync failed:', error);
+  }
 
   return {
     success: true,
@@ -196,6 +216,14 @@ async function updatePrompt(data: {
     ...data.updates,
     updatedAt: new Date(),
   });
+  
+  // 触发自动同步
+  try {
+    await autoSyncManager.markLocalModified();
+    await autoSyncManager.scheduleAutoSync();
+  } catch (error) {
+    console.error('[Sidecar] Auto sync failed:', error);
+  }
 
   return { success: true };
 }
@@ -221,6 +249,14 @@ async function deletePrompt(data: { promptId: number }) {
     // 删除 Prompt
     await db.prompts.delete(data.promptId);
   });
+  
+  // 触发自动同步
+  try {
+    await autoSyncManager.markLocalModified();
+    await autoSyncManager.scheduleAutoSync();
+  } catch (error) {
+    console.error('[Sidecar] Auto sync failed:', error);
+  }
 
   return { success: true };
 }
@@ -272,6 +308,14 @@ async function createVersion(data: {
   await db.prompts.update(data.promptId, {
     updatedAt: new Date(),
   });
+  
+  // 触发自动同步
+  try {
+    await autoSyncManager.markLocalModified();
+    await autoSyncManager.scheduleAutoSync();
+  } catch (error) {
+    console.error('[Sidecar] Auto sync failed:', error);
+  }
 
   return {
     success: true,
