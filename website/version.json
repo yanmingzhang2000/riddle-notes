@@ -1,7 +1,10 @@
 {
-  "version": "1.0.0",
+  "version": "1.1.0",
   "releaseDate": "2026-11-26",
   "releaseNotes": [
+    "⚠️ 重要：扩展 ID 变化，v1.0.0 用户升级前必须先导出备份",
+    "为云同步功能准备：固定扩展 ID",
+    "详见安装说明中的升级步骤",
     "ChatGPT Web 对话收藏，首次使用有引导",
     "手动笔记：新建、编辑和管理",
     "侧栏搜索，以及最近收集、重要筛选",
@@ -10,7 +13,7 @@
     "匿名使用统计：默认开启，可在设置里关闭"
   ],
   "repositoryUrl": "https://github.com/yanmingzhang2000/riddle-notes",
-  "extensionDownloadPath": "https://github.com/yanmingzhang2000/riddle-notes/releases/download/v1.0.0/riddle-note-extension.zip",
+  "extensionDownloadPath": "https://github.com/yanmingzhang2000/riddle-notes/releases/download/v1.1.0/riddle-note-extension.zip",
   "sourceDownloadUrl": "https://github.com/yanmingzhang2000/riddle-notes/archive/refs/heads/main.zip",
   "installationGuide": "https://github.com/yanmingzhang2000/riddle-notes/blob/main/INSTALLATION.md",
   "changelogUrl": "https://github.com/yanmingzhang2000/riddle-notes/commits/main/",
