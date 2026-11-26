@@ -7,7 +7,8 @@ import {
   XCircle, 
   RefreshCw,
   Globe,
-  Info
+  Info,
+  BarChart2
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../../db/schema';
@@ -26,6 +27,7 @@ import {
   restoreBackup,
   safetyBackupFileName,
 } from '../../shared/backup';
+import { isAnalyticsEnabled, setAnalyticsEnabled } from '../../shared/analytics';
 
 const Settings: React.FC = () => {
   const navigate = useNavigate();
@@ -40,6 +42,9 @@ const Settings: React.FC = () => {
   const [lastCheckResult, setLastCheckResult] = useState<UpdateCheckResult>();
   const [lastCheckError, setLastCheckError] = useState<UpdateError>();
   const [isChecking, setIsChecking] = useState(false);
+  
+  // Analytics 状态
+  const [analyticsEnabled, setAnalyticsEnabledState] = useState(true);
   
   const updateService = UpdateService.getInstance();
 
@@ -56,6 +61,10 @@ const Settings: React.FC = () => {
           updateCheckEnabled: settings.updateCheckEnabled,
           updateManifestUrl: settings.updateManifestUrl,
         });
+        
+        // 获取 analytics 设置
+        const analyticsState = await isAnalyticsEnabled();
+        setAnalyticsEnabledState(analyticsState);
         
         // 获取之前的检查结果
         const existingSettings = await db.appSettings.get(1);
@@ -89,6 +98,9 @@ const Settings: React.FC = () => {
         updateCheckEnabled: updateSettings.updateCheckEnabled,
         updateManifestUrl: updateSettings.updateManifestUrl,
       });
+      
+      // 保存 analytics 设置
+      await setAnalyticsEnabled(analyticsEnabled);
       
       alert('设置已保存');
     } catch (error) {
@@ -415,6 +427,52 @@ const Settings: React.FC = () => {
           </button>
           <p className="text-xs meta mt-1">
             下次打开支持的 AI 网站时,再次显示首次使用引导
+          </p>
+        </section>
+
+        {/* Analytics Settings */}
+        <section className="mb-8">
+          <h3 className="text-lg font-semibold text-ink mb-4 flex items-center gap-2">
+            <BarChart2 className="w-5 h-5 text-mapblue" />
+            数据统计
+          </h3>
+
+          <div className="paper-panel paper-panel--seal mb-4">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-seal mt-0.5" />
+              <div className="text-sm text-brown">
+                <p className="font-medium mb-1">匿名使用统计</p>
+                <p className="mb-2">
+                  Riddle Notes 会上报匿名的使用统计（如保存次数、活跃天数），
+                  用于改进产品。<strong>你的笔记内容、标题和链接不会被上报。</strong>
+                </p>
+                <p className="mb-2">
+                  上报时会使用一个随机生成的安装 ID（不包含任何个人信息），
+                  以及你的 IP 和浏览器信息（用于统计地区和设备类型）。
+                </p>
+                <p>保险箱相关操作不会被上报。</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium text-brown">
+              允许匿名使用统计
+            </label>
+            <button
+              type="button"
+              onClick={() => setAnalyticsEnabledState(!analyticsEnabled)}
+              className={`switch ${
+                analyticsEnabled ? 'bg-sage' : 'bg-line'
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-paper transition ${
+                analyticsEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`} />
+            </button>
+          </div>
+          <p className="text-xs meta mt-1">
+            关闭后，扩展仍可正常使用，但我们无法了解产品的使用情况
           </p>
         </section>
 

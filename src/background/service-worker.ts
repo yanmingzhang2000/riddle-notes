@@ -1,5 +1,9 @@
 import { db, initializeDefaultData } from '@db/schema';
 import { initOnboardingOnInstalled } from '@shared/onboarding';
+import { trackInstall, trackSavePrompt, setupDailyHeartbeat, listenForHeartbeat } from '@shared/analytics';
+
+// 监听 alarm（每日心跳）
+listenForHeartbeat();
 
 // 监听扩展安装
 chrome.runtime.onInstalled.addListener(async (details) => {
@@ -18,6 +22,14 @@ chrome.runtime.onInstalled.addListener(async (details) => {
   
   // 设置 Side Panel 行为
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  
+  // 上报安装事件（只在首次安装时）
+  if (details.reason === 'install') {
+    await trackInstall();
+  }
+  
+  // 设置每日心跳
+  await setupDailyHeartbeat();
   
   console.log('[Sidecar] Initialization complete');
 });
@@ -126,6 +138,9 @@ async function savePrompt(data: {
       });
     }
   }
+
+  // 上报保存事件
+  await trackSavePrompt();
 
   return {
     success: true,

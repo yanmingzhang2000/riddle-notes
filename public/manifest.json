@@ -7,14 +7,16 @@
     "storage",
     "activeTab",
     "sidePanel",
-    "contextMenus"
+    "contextMenus",
+    "alarms"
   ],
   "host_permissions": [
     "https://chat.openai.com/*",
     "https://chatgpt.com/*",
     "https://claude.ai/*",
     "https://gemini.google.com/*",
-    "https://workbuddy.ai/*"
+    "https://workbuddy.ai/*",
+    "https://cloud.umami.is/*"
   ],
   "background": {
     "service_worker": "src/background/service-worker.ts",
