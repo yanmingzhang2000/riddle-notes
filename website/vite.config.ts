@@ -6,7 +6,13 @@ export default defineConfig({
   base: '/riddle-notes/',
   build: {
     outDir: 'dist',
-    sourcemap: false
+    sourcemap: false,
+    rollupOptions: {
+      input: {
+        main: 'index.html',
+        stats: 'stats.html'
+      }
+    }
   },
   server: {
     port: 3000,
