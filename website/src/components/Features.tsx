@@ -23,7 +23,7 @@ export default function Features() {
         <div className="section-heading" data-reveal>
           <p className="eyebrow">THE NOTEBOOK</p>
           <h2>收藏、找回、留存。</h2>
-          <p>Riddle Notes 目前只做这三件事。右图是收藏之后的真实界面。</p>
+          <p>Riddle Notes 的核心是这三件事。右图是收藏之后的真实界面。</p>
         </div>
 
         <div className="feature-showcase">

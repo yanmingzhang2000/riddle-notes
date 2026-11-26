@@ -1,11 +1,12 @@
 {
-  "version": "0.1.0",
-  "releaseDate": "2026-11-09",
+  "version": "1.0.0",
+  "releaseDate": "2026-11-26",
   "releaseNotes": [
-    "ChatGPT Web 对话收藏",
-    "侧栏列表与标题、描述搜索",
-    "最近收藏与我的收藏筛选",
-    "JSON 数据导出和导入"
+    "ChatGPT Web 对话收藏，首次使用有引导",
+    "手动笔记：新建、编辑和管理",
+    "侧栏搜索，以及最近收集、重要筛选",
+    "JSON 导出和导入；导入前先校验，并自动备份现有数据",
+    "保险箱（测试功能）：用主密码加密保存 API Key、账号密码等。暂不能导出，JSON 备份也不含保险箱"
   ],
   "repositoryUrl": "https://github.com/yanmingzhang2000/riddle-notes",
   "extensionDownloadPath": "./downloads/riddle-notes-extension.zip",
