@@ -16,6 +16,7 @@
     "website:preview": "cd website && npm run preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.119.2",
     "@zxcvbn-ts/core": "^4.3.0",
     "@zxcvbn-ts/language-common": "^4.2.0",
     "clsx": "^2.1.1",
